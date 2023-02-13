@@ -6,11 +6,15 @@ const (
 	Key_Unknown Key = 0
 	ControlB        = 0x02
 	Enter           = 0x0D
+	Backspace       = 0x7f
+	Escape          = 0x1b
 )
 
 var keys = map[byte]Key{
-	ControlB: ControlB,
-	Enter:    Enter,
+	Escape:    Escape,
+	ControlB:  ControlB,
+	Enter:     Enter,
+	Backspace: Backspace,
 }
 
 func GetKey(b byte) Key {

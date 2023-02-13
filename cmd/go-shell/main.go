@@ -11,7 +11,7 @@ import (
 func main() {
 	rootCommand := &cobra.Command{
 		Run: func(cmd *cobra.Command, args []string) {
-			if err := shell.Run(os.Stdin); err != nil {
+			if err := shell.Run(os.Stdin, os.Stdout); err != nil {
 				fmt.Println(err)
 			}
 		},
