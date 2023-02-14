@@ -27,7 +27,8 @@ func initInput(in *os.File) (input, error) {
 
 func (i *input) makeRaw() error {
 	var err error
-	i.termState, err = term.MakeRaw(int(i.fd))
+	i.termState, err = term.MakeRaw(i.fd)
+
 	return err
 }
 

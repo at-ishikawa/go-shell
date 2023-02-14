@@ -2,9 +2,9 @@ package shell
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
-	"strconv"
 	"strings"
 
 	"github.com/at-ishikawa/go-shell/internal/keyboard"
@@ -17,32 +17,35 @@ func Run(inFile *os.File, outFile *os.File) error {
 		return err
 	}
 	defer in.finalize()
+	out := initOutput(outFile)
+	defer out.finalize()
 
 	for {
-		outFile.WriteString("$ ")
+		out.writeLine("")
 
 		if err := in.makeRaw(); err != nil {
-			fmt.Fprintln(os.Stderr, err)
+			return err
 		}
-
-		line, err := getCommand(in, outFile)
+		line, err := getCommand(in, out)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			continue
 		}
-
 		// For some reason, term.Restore for an input is required before executing a command
 		if err := in.restore(); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		}
+
 		if err := runCommand(line, outFile); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		}
 	}
 }
 
-func getCommand(in input, outFile *os.File) (string, error) {
+func getCommand(in input, out output) (string, error) {
+	cursor := 0
 	line := ""
+
 	for {
 		char, key, err := in.Read()
 		if err != nil {
@@ -50,8 +53,7 @@ func getCommand(in input, outFile *os.File) (string, error) {
 		}
 
 		if key == keyboard.Enter {
-			outFile.WriteString("\n")
-			outFile.Write([]byte{'\r'})
+			out.newLine()
 			break
 		}
 
@@ -60,28 +62,27 @@ func getCommand(in input, outFile *os.File) (string, error) {
 			line = line[:len(line)-1]
 			break
 		case keyboard.ControlB:
-			// TODO: Move back to a cursor. For some reasons, this doesn't work
-			count := strconv.Itoa(1)
-			outFile.Write([]byte{keyboard.Escape, '['})
-			outFile.Write([]byte(count))
-			outFile.Write([]byte{'D'})
+			if -cursor < len(line) {
+				cursor = cursor - 1
+			}
+
 			break
 		default:
 			line = line + char
 		}
-		// https://gist.github.com/fnky/458719343aabd01cfb17a3a4f7296797
-		// fmt.Printf("\\033[2K")
-		// fmt.Printf("\\r")
-		// fmt.Print("$ " + line)
-		outFile.Write([]byte{keyboard.Escape, '[', '2', 'K'})
-		outFile.Write([]byte{'\r'})
-		outFile.WriteString("$ ")
-		outFile.WriteString(line)
+
+		out.writeLine(line)
+		if len(line) <= 0 {
+			continue
+		}
+		if cursor < 0 {
+			out.moveLeft(-cursor)
+		}
 	}
 	return line, nil
 }
 
-func runCommand(commandStr string, outFile *os.File) error {
+func runCommand(commandStr string, outFile io.Writer) error {
 	commandStr = strings.TrimSuffix(commandStr, "\n")
 	arrCommandStr := strings.Fields(commandStr)
 	switch arrCommandStr[0] {
