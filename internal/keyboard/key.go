@@ -5,15 +5,17 @@ type Key int
 const (
 	Key_Unknown Key = 0
 	ControlB        = 0x02
-	Enter           = 0x0D
-	Backspace       = 0x7f
 	Escape          = 0x1b
+	Enter           = 0x0D
+	Tab             = 0x9
+	Backspace       = 0x7f
 )
 
 var keys = map[byte]Key{
-	Escape:    Escape,
 	ControlB:  ControlB,
+	Escape:    Escape,
 	Enter:     Enter,
+	Tab:       Tab,
 	Backspace: Backspace,
 }
 

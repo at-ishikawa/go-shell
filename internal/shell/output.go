@@ -3,35 +3,25 @@ package shell
 import (
 	"fmt"
 	"os"
-
-	"golang.org/x/term"
 )
 
 type output struct {
-	fd        int
-	file      *os.File
-	termState *term.State
+	fd     int
+	file   *os.File
+	cursor int
 }
 
 func initOutput(out *os.File) output {
 	return output{
-		fd:   int(out.Fd()),
-		file: out,
+		fd:     int(out.Fd()),
+		file:   out,
+		cursor: 0,
 	}
 }
 
-func (o *output) makeRaw() error {
-	var err error
-	o.termState, err = term.MakeRaw(int(o.fd))
-	return err
-}
-
-func (o *output) restore() error {
-	return term.Restore(o.fd, o.termState)
-}
-
-func (o *output) finalize() error {
-	return o.restore()
+func (o *output) initNewLine() error {
+	o.cursor = 0
+	return o.writeLine("")
 }
 
 func (o *output) newLine() error {
@@ -41,9 +31,8 @@ func (o *output) newLine() error {
 	return nil
 }
 
-func (o *output) moveLeft(count int) error {
-	_, err := fmt.Fprintf(o.file, "\033[%dD", count)
-	return err
+func (o *output) moveLeft(count int) {
+	o.cursor = o.cursor - count
 }
 
 func (o *output) clearLine() error {
@@ -55,5 +44,9 @@ func (o *output) clearLine() error {
 func (o *output) writeLine(str string) error {
 	o.clearLine()
 	o.file.WriteString("$ " + str)
+
+	if o.cursor < 0 {
+		fmt.Fprintf(o.file, "\033[%dD", -o.cursor)
+	}
 	return nil
 }

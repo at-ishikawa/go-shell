@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"strings"
 
+	"github.com/at-ishikawa/go-shell/internal/kubectl"
 	"github.com/at-ishikawa/go-shell/internal/keyboard"
 )
 
@@ -18,10 +19,9 @@ func Run(inFile *os.File, outFile *os.File) error {
 	}
 	defer in.finalize()
 	out := initOutput(outFile)
-	defer out.finalize()
 
 	for {
-		out.writeLine("")
+		out.initNewLine()
 
 		if err := in.makeRaw(); err != nil {
 			return err
@@ -43,7 +43,6 @@ func Run(inFile *os.File, outFile *os.File) error {
 }
 
 func getCommand(in input, out output) (string, error) {
-	cursor := 0
 	line := ""
 
 	for {
@@ -59,25 +58,35 @@ func getCommand(in input, out output) (string, error) {
 
 		switch key {
 		case keyboard.Backspace:
-			line = line[:len(line)-1]
+			if len(line) > 0 {
+				line = line[:len(line)-1]
+			}
 			break
 		case keyboard.ControlB:
-			if -cursor < len(line) {
-				cursor = cursor - 1
+			if -out.cursor < len(line) {
+				out.moveLeft(-1)
 			}
-
+			break
+		case keyboard.Tab:
+			args := strings.Split(line, " ")
+			if args[0] == "kubectl" {
+				suggested, err := kubectl.Suggest(args)
+				if err != nil {
+					fmt.Println(err)
+					break
+				}
+				line = line + strings.Join(suggested, " ")
+			}
 			break
 		default:
 			line = line + char
 		}
 
-		out.writeLine(line)
 		if len(line) <= 0 {
+			out.writeLine("")
 			continue
 		}
-		if cursor < 0 {
-			out.moveLeft(-cursor)
-		}
+		out.writeLine(line)
 	}
 	return line, nil
 }
