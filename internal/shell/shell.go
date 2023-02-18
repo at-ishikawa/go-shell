@@ -143,7 +143,7 @@ func (s *Shell) handleShortcutKey(line string, char rune, key keyboard.Key) (str
 		}
 		break
 	default:
-		if !unicode.IsLetter(char) {
+		if !unicode.IsLetter(char) && string(char) != " " {
 			break
 		}
 

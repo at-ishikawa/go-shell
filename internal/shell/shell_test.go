@@ -8,6 +8,76 @@ import (
 )
 
 func Test_HandleShortcutKey(t *testing.T) {
+	t.Run("type a character", func(t *testing.T) {
+		testCases := []struct {
+			name        string
+			shell       Shell
+			command     string
+			typedChar   rune
+			wantCommand string
+			wantCursor  int
+			wantErr     error
+		}{
+			{
+				name:        "Type a letter",
+				command:     "ab",
+				typedChar:   rune(byte('c')),
+				wantCommand: "abc",
+			},
+			{
+				name:        "Type a letter when no command",
+				typedChar:   rune(byte('c')),
+				wantCommand: "c",
+			},
+			{
+				name: "Type a letter when the cursor is the middle of the command",
+				shell: Shell{
+					out: output{
+						cursor: -1,
+					},
+				},
+				command:     "ab",
+				typedChar:   rune(byte('c')),
+				wantCommand: "acb",
+				wantCursor:  -1,
+			},
+
+			{
+				name:        "Type a space",
+				command:     "ab",
+				typedChar:   rune(byte(' ')),
+				wantCommand: "ab ",
+			},
+			{
+				name:        "Type a space when no command",
+				typedChar:   rune(byte(' ')),
+				wantCommand: " ",
+			},
+			{
+				name: "Type a space when the cursor is the middle of the command",
+				shell: Shell{
+					out: output{
+						cursor: -1,
+					},
+				},
+				command:     "ab",
+				typedChar:   rune(byte(' ')),
+				wantCommand: "a b",
+				wantCursor:  -1,
+			},
+		}
+
+		for _, tc := range testCases {
+			t.Run(tc.name, func(t *testing.T) {
+				gotLine, gotErr := tc.shell.handleShortcutKey(tc.command, tc.typedChar, keyboard.Key_Unknown)
+				assert.Equal(t, tc.wantCommand, gotLine)
+				assert.Equal(t, tc.wantCursor, tc.shell.out.cursor)
+				assert.Equal(t, tc.wantErr, gotErr)
+			})
+		}
+
+	})
+
 	t.Run("Move cursor shortcuts", func(t *testing.T) {
 
 		testCases := []struct {
