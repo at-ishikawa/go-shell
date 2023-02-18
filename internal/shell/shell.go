@@ -39,6 +39,7 @@ func (s Shell) Run(inFile *os.File, outFile *os.File) error {
 
 	for {
 		out.initNewLine()
+		out.cursor = 0
 
 		line, err := s.getCommand(in, out)
 		if err != nil {
@@ -111,9 +112,20 @@ func (s Shell) getCommand(in input, out output) (string, error) {
 				line = ""
 			}
 			break
+		case keyboard.ControlA:
+			out.moveCursor(-len(line))
+			break
+		case keyboard.ControlE:
+			out.cursor = 0
+			break
+		case keyboard.ControlF:
+			if out.cursor < 0 {
+				out.moveCursor(1)
+			}
+			break
 		case keyboard.ControlB:
 			if -out.cursor < len(line) {
-				out.moveLeft(-1)
+				out.moveCursor(-1)
 			}
 			break
 		case keyboard.Tab:

@@ -31,8 +31,8 @@ func (o *output) newLine() error {
 	return nil
 }
 
-func (o *output) moveLeft(count int) {
-	o.cursor = o.cursor - count
+func (o *output) moveCursor(count int) {
+	o.cursor = o.cursor + count
 }
 
 func (o *output) clearLine() error {
@@ -48,5 +48,12 @@ func (o *output) writeLine(str string) error {
 	if o.cursor < 0 {
 		fmt.Fprintf(o.file, "\033[%dD", -o.cursor)
 	}
+
+	/*
+		log.Println("%v", map[string]interface{}{
+			"str":    str,
+			"cursor": o.cursor,
+		})
+	*/
 	return nil
 }
