@@ -44,22 +44,22 @@ func (s Shell) Run() error {
 		s.out.initNewLine()
 		s.out.setCursor(0)
 
-		line, err := s.getCommand()
+		inputCommand, err := s.getInputCommand()
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			continue
 		}
-		if strings.TrimSpace(line) == "" {
+		if strings.TrimSpace(inputCommand) == "" {
 			continue
 		}
 
-		s.histories = append(s.histories, line)
+		s.histories = append(s.histories, inputCommand)
 		s.historyIndex = len(s.histories)
 		// For some reason, term.Restore for an input is required before executing a command
 		if err := s.in.restore(); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		}
-		if err := s.runCommand(line); err != nil {
+		if err := s.runCommand(inputCommand); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		}
 		if err := s.in.makeRaw(); err != nil {
@@ -68,18 +68,18 @@ func (s Shell) Run() error {
 	}
 }
 
-func (s *Shell) handleShortcutKey(line string, char rune, key keyboard.Key) (string, error) {
+func (s *Shell) handleShortcutKey(inputCommand string, char rune, key keyboard.Key) (string, error) {
 	switch key {
 	case keyboard.Backspace:
-		if len(line) == 0 {
+		if len(inputCommand) == 0 {
 			break
 		}
 
 		if s.out.cursor < 0 {
-			lineIndex := len(line) + s.out.cursor
-			line = line[:lineIndex-1] + line[lineIndex:]
+			inputCommandIndex := len(inputCommand) + s.out.cursor
+			inputCommand = inputCommand[:inputCommandIndex-1] + inputCommand[inputCommandIndex:]
 		} else {
-			line = line[:len(line)-1]
+			inputCommand = inputCommand[:len(inputCommand)-1]
 		}
 		break
 	case keyboard.ControlR:
@@ -90,33 +90,33 @@ func (s *Shell) handleShortcutKey(line string, char rune, key keyboard.Key) (str
 		if err != nil {
 			return "", err
 		} else {
-			line = s.histories[idx]
+			inputCommand = s.histories[idx]
 		}
 	case keyboard.ControlP:
 		if 0 < s.historyIndex {
 			s.historyIndex--
-			line = s.histories[s.historyIndex]
+			inputCommand = s.histories[s.historyIndex]
 		}
 
 		break
 	case keyboard.ControlN:
 		if len(s.histories)-1 > s.historyIndex {
 			s.historyIndex++
-			line = s.histories[s.historyIndex]
+			inputCommand = s.histories[s.historyIndex]
 		} else if len(s.histories) > s.historyIndex {
 			s.historyIndex++
-			line = ""
+			inputCommand = ""
 		}
 		break
 	case keyboard.ControlK:
-		lineIndex := len(line) + s.out.cursor
-		if lineIndex < len(line) {
-			line = line[:lineIndex]
+		inputCommandIndex := len(inputCommand) + s.out.cursor
+		if inputCommandIndex < len(inputCommand) {
+			inputCommand = inputCommand[:inputCommandIndex]
 			s.out.cursor = 0
 		}
 		break
 	case keyboard.ControlA:
-		s.out.setCursor(-len(line))
+		s.out.setCursor(-len(inputCommand))
 		break
 	case keyboard.ControlE:
 		s.out.setCursor(0)
@@ -127,19 +127,19 @@ func (s *Shell) handleShortcutKey(line string, char rune, key keyboard.Key) (str
 		}
 		break
 	case keyboard.ControlB:
-		if -s.out.cursor < len(line) {
+		if -s.out.cursor < len(inputCommand) {
 			s.out.moveCursor(-1)
 		}
 		break
 	case keyboard.Tab:
-		args := strings.Split(line, " ")
+		args := strings.Split(inputCommand, " ")
 		if args[0] == "kubectl" {
 			suggested, err := kubectl.Suggest(args)
 			if err != nil {
 				fmt.Println(err)
 				break
 			}
-			line = line + strings.Join(suggested, " ")
+			inputCommand = inputCommand + strings.Join(suggested, " ")
 		}
 		break
 	default:
@@ -148,18 +148,18 @@ func (s *Shell) handleShortcutKey(line string, char rune, key keyboard.Key) (str
 		}
 
 		if s.out.cursor < 0 {
-			lineIndex := len(line) + s.out.cursor
-			line = line[:lineIndex] + string(char) + line[lineIndex:]
+			inputCommandIndex := len(inputCommand) + s.out.cursor
+			inputCommand = inputCommand[:inputCommandIndex] + string(char) + inputCommand[inputCommandIndex:]
 		} else {
-			line = line + string(char)
+			inputCommand = inputCommand + string(char)
 		}
 	}
 
-	return line, nil
+	return inputCommand, nil
 }
 
-func (s Shell) getCommand() (string, error) {
-	line := ""
+func (s Shell) getInputCommand() (string, error) {
+	inputCommand := ""
 
 	for {
 		char, key, err := s.in.Read()
@@ -173,24 +173,24 @@ func (s Shell) getCommand() (string, error) {
 			break
 		}
 		if key == keyboard.ControlC {
-			line = ""
+			inputCommand = ""
 			s.out.newLine()
 			break
 		}
 
-		line, err = s.handleShortcutKey(line, char, key)
+		inputCommand, err = s.handleShortcutKey(inputCommand, char, key)
 		if err != nil {
 			s.out.writeLine("")
 			return "", err
 		}
 
-		if len(line) <= 0 {
+		if len(inputCommand) <= 0 {
 			s.out.writeLine("")
 			continue
 		}
-		s.out.writeLine(line)
+		s.out.writeLine(inputCommand)
 	}
-	return line, nil
+	return inputCommand, nil
 }
 
 func (s Shell) runCommand(commandStr string) error {

@@ -363,6 +363,8 @@ func Test_HandleShortcutKey(t *testing.T) {
 				wantCommand:      "abc",
 				wantHistoryIndex: 2,
 			},
+
+			// todo: Test Control R
 		}
 
 		for _, tc := range testCases {
@@ -375,4 +377,6 @@ func Test_HandleShortcutKey(t *testing.T) {
 			})
 		}
 	})
+
+	// todo: Test Tab
 }
