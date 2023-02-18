@@ -7,10 +7,9 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/ktr0731/go-fuzzyfinder"
-
 	"github.com/at-ishikawa/go-shell/internal/keyboard"
 	"github.com/at-ishikawa/go-shell/internal/kubectl"
+	"github.com/ktr0731/go-fuzzyfinder"
 )
 
 type Shell struct {
@@ -69,12 +68,103 @@ func (s Shell) Run() error {
 	}
 }
 
+func (s *Shell) handleShortcutKey(line string, char rune, key keyboard.Key) (string, error) {
+	switch key {
+	case keyboard.Backspace:
+		if len(line) == 0 {
+			break
+		}
+
+		if s.out.cursor < 0 {
+			lineIndex := len(line) + s.out.cursor
+			line = line[:lineIndex-1] + line[lineIndex:]
+		} else {
+			line = line[:len(line)-1]
+		}
+		break
+	case keyboard.ControlR:
+		idx, err := fuzzyfinder.Find(s.histories,
+			func(i int) string {
+				return s.histories[i]
+			})
+		if err != nil {
+			return "", err
+		} else {
+			line = s.histories[idx]
+		}
+	case keyboard.ControlP:
+		if 0 < s.historyIndex {
+			s.historyIndex--
+			line = s.histories[s.historyIndex]
+		}
+
+		break
+	case keyboard.ControlN:
+		if len(s.histories)-1 > s.historyIndex {
+			s.historyIndex++
+			line = s.histories[s.historyIndex]
+		} else if len(s.histories) > s.historyIndex {
+			s.historyIndex++
+			line = ""
+		}
+		break
+	case keyboard.ControlK:
+		lineIndex := len(line) + s.out.cursor
+		if lineIndex < len(line) {
+			line = line[:lineIndex]
+			s.out.cursor = 0
+		}
+		break
+	case keyboard.ControlA:
+		s.out.setCursor(-len(line))
+		break
+	case keyboard.ControlE:
+		s.out.setCursor(0)
+		break
+	case keyboard.ControlF:
+		if s.out.cursor < 0 {
+			s.out.moveCursor(1)
+		}
+		break
+	case keyboard.ControlB:
+		if -s.out.cursor < len(line) {
+			s.out.moveCursor(-1)
+		}
+		break
+	case keyboard.Tab:
+		args := strings.Split(line, " ")
+		if args[0] == "kubectl" {
+			suggested, err := kubectl.Suggest(args)
+			if err != nil {
+				fmt.Println(err)
+				break
+			}
+			line = line + strings.Join(suggested, " ")
+		}
+		break
+	default:
+		if !unicode.IsLetter(char) {
+			break
+		}
+
+		if s.out.cursor < 0 {
+			lineIndex := len(line) + s.out.cursor
+			line = line[:lineIndex] + string(char) + line[lineIndex:]
+		} else {
+			line = line + string(char)
+		}
+	}
+
+	return line, nil
+}
+
 func (s Shell) getCommand() (string, error) {
 	line := ""
 
 	for {
 		char, key, err := s.in.Read()
 		if err != nil {
+			s.out.writeLine("")
 			return "", err
 		}
 
@@ -82,92 +172,16 @@ func (s Shell) getCommand() (string, error) {
 			s.out.newLine()
 			break
 		}
+		if key == keyboard.ControlC {
+			line = ""
+			s.out.newLine()
+			break
+		}
 
-		switch key {
-		case keyboard.Backspace:
-			if len(line) == 0 {
-				break
-			}
-
-			if s.out.cursor < 0 {
-				lineIndex := len(line) + s.out.cursor
-				line = line[:lineIndex-1] + line[lineIndex:]
-			} else {
-				line = line[:len(line)-1]
-			}
-			break
-		case keyboard.ControlR:
-			idx, err := fuzzyfinder.Find(s.histories,
-				func(i int) string {
-					return s.histories[i]
-				})
-			if err != nil {
-				// ignore
-				// todo: fix this
-			} else {
-				line = s.histories[idx]
-			}
-		case keyboard.ControlP:
-			if 0 < s.historyIndex {
-				s.historyIndex--
-				line = s.histories[s.historyIndex]
-			}
-
-			break
-		case keyboard.ControlN:
-			if len(s.histories)-1 > s.historyIndex {
-				s.historyIndex++
-				line = s.histories[s.historyIndex]
-			} else if len(s.histories) > s.historyIndex {
-				s.historyIndex++
-				line = ""
-			}
-			break
-		case keyboard.ControlK:
-			lineIndex := len(line) + s.out.cursor
-			if lineIndex < len(line) {
-				line = line[:lineIndex]
-				s.out.cursor = 0
-			}
-			break
-		case keyboard.ControlA:
-			s.out.setCursor(-len(line))
-			break
-		case keyboard.ControlE:
-			s.out.setCursor(0)
-			break
-		case keyboard.ControlF:
-			if s.out.cursor < 0 {
-				s.out.moveCursor(1)
-			}
-			break
-		case keyboard.ControlB:
-			if -s.out.cursor < len(line) {
-				s.out.moveCursor(-1)
-			}
-			break
-		case keyboard.Tab:
-			args := strings.Split(line, " ")
-			if args[0] == "kubectl" {
-				suggested, err := kubectl.Suggest(args)
-				if err != nil {
-					fmt.Println(err)
-					break
-				}
-				line = line + strings.Join(suggested, " ")
-			}
-			break
-		default:
-			if !unicode.IsLetter(char) {
-				break
-			}
-
-			if s.out.cursor < 0 {
-				lineIndex := len(line) + s.out.cursor
-				line = line[:lineIndex] + string(char) + line[lineIndex:]
-			} else {
-				line = line + string(char)
-			}
+		line, err = s.handleShortcutKey(line, char, key)
+		if err != nil {
+			s.out.writeLine("")
+			return "", err
 		}
 
 		if len(line) <= 0 {

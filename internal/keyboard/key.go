@@ -7,6 +7,7 @@ const (
 	Key_Unknown Key = 0
 	ControlA        = 0x01
 	ControlB        = 0x02
+	ControlC        = 0x03
 	ControlE        = 0x05
 	ControlF        = 0x06
 	ControlK        = 0x0b
@@ -22,6 +23,7 @@ const (
 var keys = []Key{
 	ControlA,
 	ControlB,
+	ControlC,
 	ControlE,
 	ControlF,
 	ControlK,
