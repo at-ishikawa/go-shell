@@ -2,7 +2,6 @@ package shell
 
 import (
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
 	"strings"
@@ -16,32 +15,36 @@ import (
 type Shell struct {
 	historyIndex int
 	histories    []string
+	in           input
+	out          output
 }
 
-func NewShell() Shell {
+func NewShell(inFile *os.File, outFile *os.File) (Shell, error) {
+	in, err := initInput(inFile)
+	if err != nil {
+		return Shell{}, err
+	}
+	out := initOutput(outFile)
+
 	return Shell{
 		histories: []string{},
-	}
+		in:        in,
+		out:       out,
+	}, nil
 }
 
 // https://hackernoon.com/today-i-learned-making-a-simple-interactive-shell-application-in-golang-aa83adcb266a
-func (s Shell) Run(inFile *os.File, outFile *os.File) error {
-	in, err := initInput(inFile)
-	if err != nil {
+func (s Shell) Run() error {
+	defer s.in.finalize()
+	if err := s.in.makeRaw(); err != nil {
 		return err
 	}
-	defer in.finalize()
-	if err := in.makeRaw(); err != nil {
-		return err
-	}
-
-	out := initOutput(outFile)
 
 	for {
-		out.initNewLine()
-		out.cursor = 0
+		s.out.initNewLine()
+		s.out.setCursor(0)
 
-		line, err := s.getCommand(in, out)
+		line, err := s.getCommand()
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			continue
@@ -53,29 +56,29 @@ func (s Shell) Run(inFile *os.File, outFile *os.File) error {
 		s.histories = append(s.histories, line)
 		s.historyIndex = len(s.histories)
 		// For some reason, term.Restore for an input is required before executing a command
-		if err := in.restore(); err != nil {
+		if err := s.in.restore(); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		}
-		if err := s.runCommand(line, outFile); err != nil {
+		if err := s.runCommand(line); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		}
-		if err := in.makeRaw(); err != nil {
+		if err := s.in.makeRaw(); err != nil {
 			return err
 		}
 	}
 }
 
-func (s Shell) getCommand(in input, out output) (string, error) {
+func (s Shell) getCommand() (string, error) {
 	line := ""
 
 	for {
-		char, key, err := in.Read()
+		char, key, err := s.in.Read()
 		if err != nil {
 			return "", err
 		}
 
 		if key == keyboard.Enter {
-			out.newLine()
+			s.out.newLine()
 			break
 		}
 
@@ -113,19 +116,19 @@ func (s Shell) getCommand(in input, out output) (string, error) {
 			}
 			break
 		case keyboard.ControlA:
-			out.moveCursor(-len(line))
+			s.out.setCursor(-len(line))
 			break
 		case keyboard.ControlE:
-			out.cursor = 0
+			s.out.setCursor(0)
 			break
 		case keyboard.ControlF:
-			if out.cursor < 0 {
-				out.moveCursor(1)
+			if s.out.cursor < 0 {
+				s.out.moveCursor(1)
 			}
 			break
 		case keyboard.ControlB:
-			if -out.cursor < len(line) {
-				out.moveCursor(-1)
+			if -s.out.cursor < len(line) {
+				s.out.moveCursor(-1)
 			}
 			break
 		case keyboard.Tab:
@@ -144,15 +147,15 @@ func (s Shell) getCommand(in input, out output) (string, error) {
 		}
 
 		if len(line) <= 0 {
-			out.writeLine("")
+			s.out.writeLine("")
 			continue
 		}
-		out.writeLine(line)
+		s.out.writeLine(line)
 	}
 	return line, nil
 }
 
-func (s Shell) runCommand(commandStr string, outFile io.Writer) error {
+func (s Shell) runCommand(commandStr string) error {
 	commandStr = strings.TrimSuffix(commandStr, "\n")
 	arrCommandStr := strings.Fields(commandStr)
 	switch arrCommandStr[0] {
@@ -162,6 +165,6 @@ func (s Shell) runCommand(commandStr string, outFile io.Writer) error {
 	}
 	cmd := exec.Command(arrCommandStr[0], arrCommandStr[1:]...)
 	cmd.Stderr = os.Stderr
-	cmd.Stdout = outFile
+	cmd.Stdout = s.out.file
 	return cmd.Run()
 }

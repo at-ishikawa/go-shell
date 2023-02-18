@@ -31,6 +31,10 @@ func (o *output) newLine() error {
 	return nil
 }
 
+func (o *output) setCursor(position int) {
+	o.cursor = position
+}
+
 func (o *output) moveCursor(count int) {
 	o.cursor = o.cursor + count
 }
