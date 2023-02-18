@@ -9,6 +9,7 @@ const (
 	ControlB        = 0x02
 	ControlE        = 0x05
 	ControlF        = 0x06
+	ControlK        = 0x0b
 	ControlN        = 0x0e
 	ControlP        = 0x10
 	ControlR        = 0x12
@@ -23,6 +24,7 @@ var keys = []Key{
 	ControlB,
 	ControlE,
 	ControlF,
+	ControlK,
 	ControlN,
 	ControlP,
 	ControlR,

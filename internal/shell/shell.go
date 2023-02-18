@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"unicode"
 
 	"github.com/ktr0731/go-fuzzyfinder"
 
@@ -84,7 +85,14 @@ func (s Shell) getCommand() (string, error) {
 
 		switch key {
 		case keyboard.Backspace:
-			if len(line) > 0 {
+			if len(line) == 0 {
+				break
+			}
+
+			if s.out.cursor < 0 {
+				lineIndex := len(line) + s.out.cursor
+				line = line[:lineIndex-1] + line[lineIndex:]
+			} else {
 				line = line[:len(line)-1]
 			}
 			break
@@ -115,6 +123,13 @@ func (s Shell) getCommand() (string, error) {
 				line = ""
 			}
 			break
+		case keyboard.ControlK:
+			lineIndex := len(line) + s.out.cursor
+			if lineIndex < len(line) {
+				line = line[:lineIndex]
+				s.out.cursor = 0
+			}
+			break
 		case keyboard.ControlA:
 			s.out.setCursor(-len(line))
 			break
@@ -143,7 +158,16 @@ func (s Shell) getCommand() (string, error) {
 			}
 			break
 		default:
-			line = line + char
+			if !unicode.IsLetter(char) {
+				break
+			}
+
+			if s.out.cursor < 0 {
+				lineIndex := len(line) + s.out.cursor
+				line = line[:lineIndex] + string(char) + line[lineIndex:]
+			} else {
+				line = line + string(char)
+			}
 		}
 
 		if len(line) <= 0 {

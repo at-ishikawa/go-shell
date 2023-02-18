@@ -40,7 +40,7 @@ func (i *input) finalize() error {
 	return i.restore()
 }
 
-func (i *input) Read() (string, keyboard.Key, error) {
+func (i *input) Read() (rune, keyboard.Key, error) {
 	b, err := i.reader.ReadByte()
-	return string(b), keyboard.GetKey(b), err
+	return rune(b), keyboard.GetKey(b), err
 }
