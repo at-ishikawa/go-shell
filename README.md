@@ -23,3 +23,4 @@ It's still under development.
 
 - Pipe and redirection
 - Variables and functions
+- No context for a directory

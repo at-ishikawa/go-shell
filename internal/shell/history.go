@@ -3,10 +3,13 @@ package shell
 import (
 	"encoding/json"
 	"fmt"
+	"time"
 )
 
 type historyItem struct {
-	Command string `json:"command"`
+	Command string    `json:"command"`
+	Status  int       `json:"status"`
+	RunAt   time.Time `json:"run_at"`
 }
 
 type history struct {
@@ -49,9 +52,11 @@ func (h history) saveFile() error {
 	return h.config.writeFile(h.fileName, marshaledJson)
 }
 
-func (h *history) add(command string) {
+func (h *history) add(command string, status int) {
 	h.list = append(h.list, historyItem{
+		Status:  status,
 		Command: command,
+		RunAt:   time.Now(),
 	})
 	h.index = len(h.list)
 }

@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"github.com/at-ishikawa/go-shell/internal/keyboard"
@@ -66,17 +67,18 @@ func (s Shell) Run() error {
 			break
 		}
 
-		s.history.add(inputCommand)
 		// For some reason, term.Restore for an input is required before executing a command
 		if err := s.in.restore(); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		}
-		if err := s.runCommand(inputCommand); err != nil {
+		exitCode, err := s.runCommand(inputCommand)
+		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		}
 		if err := s.in.makeRaw(); err != nil {
 			return err
 		}
+		s.history.add(inputCommand, exitCode)
 	}
 	if err := s.history.saveFile(); err != nil {
 		return fmt.Errorf("failed to write a history to a file: %w", err)
@@ -165,12 +167,24 @@ func (s *Shell) handleShortcutKey(inputCommand string, char rune, key keyboard.K
 	case keyboard.ControlR:
 		idx, err := fuzzyfinder.Find(s.history.list,
 			func(i int) string {
-				return s.history.list[i].Command
-			})
+				index := len(s.history.list) - i - 1
+				return fmt.Sprintf("%-100s %20d",
+					s.history.list[index].Command,
+					s.history.list[index].Status)
+			},
+			fuzzyfinder.WithPreviewWindow(func(i, width, height int) string {
+				if i < 0 {
+					return ""
+				}
+				index := len(s.history.list) - 1 - i
+				item := s.history.list[index]
+				return fmt.Sprintf("status: %d\nRunning at: %s", item.Status, item.RunAt.Format(time.RFC3339))
+			}))
 		if err != nil {
 			return "", err
 		} else {
-			inputCommand = s.history.list[idx].Command
+			index := len(s.history.list) - idx - 1
+			inputCommand = s.history.list[index].Command
 		}
 	case keyboard.ControlP:
 		previousCommand := s.history.previous()
@@ -286,12 +300,21 @@ func (s Shell) getInputCommand() (string, error) {
 	return inputCommand, nil
 }
 
-func (s Shell) runCommand(commandStr string) error {
+func (s Shell) runCommand(commandStr string) (int, error) {
 	commandStr = strings.TrimSuffix(commandStr, "\n")
 	arrCommandStr := strings.Fields(commandStr)
 
 	cmd := exec.Command(arrCommandStr[0], arrCommandStr[1:]...)
 	cmd.Stderr = os.Stderr
 	cmd.Stdout = s.out.file
-	return cmd.Run()
+	if err := cmd.Run(); err != nil {
+		// var exitError *exec.ExitError
+		// if errors.As(err, &exitError) {
+		if exitError, ok := err.(*exec.ExitError); ok {
+			exitCode := exitError.ExitCode()
+			return exitCode, err
+		}
+		return 1, err
+	}
+	return 0, nil
 }
