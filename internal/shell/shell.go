@@ -9,6 +9,8 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/at-ishikawa/go-shell/internal/plugin/git"
+
 	"github.com/at-ishikawa/go-shell/internal/completion"
 	"github.com/at-ishikawa/go-shell/internal/keyboard"
 	"github.com/at-ishikawa/go-shell/internal/plugin"
@@ -45,8 +47,10 @@ func NewShell(inFile *os.File, outFile *os.File) (Shell, error) {
 
 	completionUi := completion.NewFzf()
 	kubeCtlPlugin := kubectl.NewKubeCtlPlugin(completionUi)
+	gitPlugin := git.NewGitPlugin(completionUi)
 	plugins := map[string]plugin.Plugin{
 		kubeCtlPlugin.Command(): kubeCtlPlugin,
+		gitPlugin.Command():     gitPlugin,
 	}
 
 	return Shell{

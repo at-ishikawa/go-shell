@@ -15,7 +15,7 @@ import (
 
 const Cli = "kubectl"
 
-var _ plugin.Plugin = new(KubeCtlPlugin)
+var _ plugin.Plugin = (*KubeCtlPlugin)(nil)
 
 type KubeCtlPlugin struct {
 	completionUi *completion.Fzf
