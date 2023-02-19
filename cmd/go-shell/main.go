@@ -14,6 +14,7 @@ func main() {
 			s, err := shell.NewShell(os.Stdin, os.Stdout)
 			if err != nil {
 				fmt.Println(err)
+				return
 			}
 			if err := s.Run(); err != nil {
 				fmt.Println(err)

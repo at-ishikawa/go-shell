@@ -54,6 +54,18 @@ func (s Shell) Run() error {
 	}
 
 	for {
+		kubeCtx, err := kubectl.GetContext()
+		if err != nil {
+			fmt.Println(err)
+		} else {
+			kubeNamespace, err := kubectl.GetNamespace(kubeCtx)
+			if err != nil {
+				fmt.Println(err)
+			} else {
+				s.out.setPrompt(fmt.Sprintf("[%s|%s] $ ", kubeCtx, kubeNamespace))
+			}
+		}
+
 		inputCommand, err := s.getInputCommand()
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)

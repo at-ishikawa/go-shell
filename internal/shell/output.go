@@ -21,6 +21,10 @@ func initOutput(out *os.File) output {
 	}
 }
 
+func (o *output) setPrompt(prompt string) {
+	o.prompt = prompt
+}
+
 func (o *output) initNewLine() error {
 	o.cursor = 0
 	return o.writeLine("")
