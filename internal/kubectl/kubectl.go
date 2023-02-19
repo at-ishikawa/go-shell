@@ -8,44 +8,10 @@ import (
 	"strings"
 
 	"github.com/at-ishikawa/go-shell/internal/kubectl/kubectloptions"
-
 	"github.com/ktr0731/go-fuzzyfinder"
 )
 
-type kubeCtlCommands struct {
-	name string
-	// bool means an option might have another argument
-	options []kubectloptions.CLIOption
-}
-
-var (
-	// bool means an argument may have another argument
-	globalOptions = []kubectloptions.CLIOption{
-		{
-			Name:            "namespace",
-			ShortOption:     "n",
-			LongOption:      "namespace",
-			HasDefaultValue: true,
-		},
-	}
-
-	kubeCtlCommandMaps = map[string]kubeCtlCommands{
-		"get": {
-			name:    "get",
-			options: kubectloptions.KubeCtlGetCommandOptions,
-		},
-		"describe": {
-			name: "describe",
-			options: []kubectloptions.CLIOption{
-				{
-					ShortOption:     "l",
-					LongOption:      "selector",
-					HasDefaultValue: true,
-				},
-			},
-		},
-	}
-)
+const kubeCtlCli = "kubectl"
 
 func filterOptions(args []string, cliOptions []kubectloptions.CLIOption) ([]string, map[string]string) {
 	result := make([]string, 0)
@@ -88,10 +54,10 @@ func Suggest(args []string) ([]string, error) {
 	}
 	var namespace string
 	var resultOptions map[string]string
-	args, resultOptions = filterOptions(args, globalOptions)
+	args, resultOptions = filterOptions(args, kubectloptions.KubeCtlGlobalOptions)
 
 	subCommand := args[1]
-	meta, ok := kubeCtlCommandMaps[subCommand]
+	subCommandOptions, ok := kubectloptions.KubeCtlOptions[subCommand]
 	if !ok {
 		// unsupported commands
 		return []string{}, nil
@@ -100,7 +66,7 @@ func Suggest(args []string) ([]string, error) {
 		namespace = ns
 	}
 
-	args, _ = filterOptions(args, meta.options)
+	args, _ = filterOptions(args, subCommandOptions)
 	resource := args[2]
 
 	suggestOptions := []string{
@@ -110,7 +76,7 @@ func Suggest(args []string) ([]string, error) {
 	if namespace != "" {
 		suggestOptions = append(suggestOptions, "-n", namespace)
 	}
-	result, err := exec.Command("kubectl", suggestOptions...).CombinedOutput()
+	result, err := exec.Command(kubeCtlCli, suggestOptions...).CombinedOutput()
 	if err != nil {
 		fmt.Println(string(result))
 		return []string{}, err
