@@ -373,8 +373,24 @@ func (s Shell) getInputCommand() (string, error) {
 }
 
 func (s Shell) runCommand(commandStr string) (int, error) {
-	commandStr = strings.TrimSuffix(commandStr, "\n")
 	arrCommandStr := strings.Fields(commandStr)
+	switch arrCommandStr[0] {
+	case "cd":
+		var dir string
+		if len(arrCommandStr) >= 2 {
+			dir = arrCommandStr[1]
+		} else {
+			homeDir, err := os.UserHomeDir()
+			if err != nil {
+				return 1, err
+			}
+			dir = homeDir
+		}
+		if err := os.Chdir(dir); err != nil {
+			return 1, err
+		}
+		return 0, nil
+	}
 
 	cmd := exec.Command(arrCommandStr[0], arrCommandStr[1:]...)
 	cmd.Stderr = os.Stderr
