@@ -1,7 +1,6 @@
 package shell
 
 import (
-	"fmt"
 	"io/fs"
 	"os"
 )
@@ -12,12 +11,7 @@ type config struct {
 	filePermission fs.FileMode
 }
 
-func newConfig() (*config, error) {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get a home directory: %w", err)
-	}
-
+func newConfig(homeDir string) (*config, error) {
 	return &config{
 		dir:            homeDir + "/.config/go-shell",
 		dirPermission:  0755,

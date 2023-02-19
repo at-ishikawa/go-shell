@@ -23,5 +23,4 @@ It's still under development.
 
 - Pipe and redirection
 - Variables and functions
-- No support for a tilde for a home directory
 - No support for string

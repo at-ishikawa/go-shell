@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"unicode/utf8"
@@ -24,6 +23,7 @@ type Shell struct {
 	isEscapeKeyPressed bool
 	completionUi       *completion.Fzf
 	plugins            map[string]plugin.Plugin
+	commandRunner      commandRunner
 }
 
 func NewShell(inFile *os.File, outFile *os.File) (Shell, error) {
@@ -33,7 +33,11 @@ func NewShell(inFile *os.File, outFile *os.File) (Shell, error) {
 	}
 	out := initOutput(outFile)
 
-	conf, err := newConfig()
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return Shell{}, err
+	}
+	conf, err := newConfig(homeDir)
 	if err != nil {
 		return Shell{}, err
 	}
@@ -54,11 +58,12 @@ func NewShell(inFile *os.File, outFile *os.File) (Shell, error) {
 	}
 
 	return Shell{
-		history:      hist,
-		in:           in,
-		out:          out,
-		completionUi: completionUi,
-		plugins:      plugins,
+		history:       hist,
+		in:            in,
+		out:           out,
+		completionUi:  completionUi,
+		plugins:       plugins,
+		commandRunner: newCommandRunner(out, homeDir),
 	}, nil
 }
 
@@ -99,7 +104,7 @@ func (s Shell) Run() error {
 		if err := s.in.restore(); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		}
-		exitCode, err := s.runCommand(inputCommand)
+		exitCode, err := s.commandRunner.run(inputCommand)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		}
@@ -370,39 +375,4 @@ func (s Shell) getInputCommand() (string, error) {
 		s.out.writeLine(inputCommand)
 	}
 	return inputCommand, nil
-}
-
-func (s Shell) runCommand(commandStr string) (int, error) {
-	arrCommandStr := strings.Fields(commandStr)
-	switch arrCommandStr[0] {
-	case "cd":
-		var dir string
-		if len(arrCommandStr) >= 2 {
-			dir = arrCommandStr[1]
-		} else {
-			homeDir, err := os.UserHomeDir()
-			if err != nil {
-				return 1, err
-			}
-			dir = homeDir
-		}
-		if err := os.Chdir(dir); err != nil {
-			return 1, err
-		}
-		return 0, nil
-	}
-
-	cmd := exec.Command(arrCommandStr[0], arrCommandStr[1:]...)
-	cmd.Stderr = os.Stderr
-	cmd.Stdout = s.out.file
-	if err := cmd.Run(); err != nil {
-		// var exitError *exec.ExitError
-		// if errors.As(err, &exitError) {
-		if exitError, ok := err.(*exec.ExitError); ok {
-			exitCode := exitError.ExitCode()
-			return exitCode, err
-		}
-		return 1, err
-	}
-	return 0, nil
 }
