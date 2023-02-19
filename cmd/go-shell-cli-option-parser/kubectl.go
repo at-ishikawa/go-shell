@@ -79,15 +79,32 @@ func newKubeCtlCommand() *cobra.Command {
 	kubeCtlCmd := &cobra.Command{
 		Use: "kubectl",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			output, err := exec.Command(kubeCtlCommand, "options").CombinedOutput()
+			output, err := exec.Command(kubeCtlCommand, "help").CombinedOutput()
+			if err != nil {
+				return fmt.Errorf("%s options error: %w", kubeCtlCommand, err)
+			}
+			var subCommands []string
+
+			regExp := regexp.MustCompile(`^  (?P<subCommand>[a-zA-Z\-_]+)`)
+			for _, line := range strings.Split(string(output), "\n") {
+				if len(line) == 0 {
+					continue
+				}
+
+				paramMap := extractParametersFromRegexp(regExp, line)
+				subCommand, ok := paramMap["subCommand"]
+				if !ok || subCommand == "kubectl" {
+					continue
+				}
+
+				subCommands = append(subCommands, subCommand)
+			}
+
+			output, err = exec.Command(kubeCtlCommand, "options").CombinedOutput()
 			if err != nil {
 				return fmt.Errorf("%s options error: %w", kubeCtlCommand, err)
 			}
 			globalCommandOptions := newOption(output)
-
-			subCommands := []string{
-				"get",
-			}
 
 			allSubCommandOptions := map[string][]kubectloptions.CLIOption{}
 			for _, subCommand := range subCommands {

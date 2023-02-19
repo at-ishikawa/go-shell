@@ -231,6 +231,1242 @@ var KubeCtlGlobalOptions = []CLIOption{
 
 var KubeCtlOptions = map[string][]CLIOption{
 
+	"alpha": {
+		
+	},
+
+	"annotate": {
+		
+		{
+			ShortOption: "",
+			LongOption: "all",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "A",
+			LongOption: "all-namespaces",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "allow-missing-template-keys",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "dry-run",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "field-manager",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "field-selector",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "f",
+			LongOption: "filename",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "k",
+			LongOption: "kustomize",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "list",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "local",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "o",
+			LongOption: "output",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "overwrite",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "R",
+			LongOption: "recursive",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "resource-version",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "l",
+			LongOption: "selector",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "show-managed-fields",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "template",
+			HasDefaultValue: false,
+		},
+		
+	},
+
+	"api-resources": {
+		
+		{
+			ShortOption: "",
+			LongOption: "api-group",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "cached",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "namespaced",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "no-headers",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "o",
+			LongOption: "output",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "sort-by",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "verbs",
+			HasDefaultValue: false,
+		},
+		
+	},
+
+	"api-versions": {
+		
+	},
+
+	"apply": {
+		
+		{
+			ShortOption: "",
+			LongOption: "all",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "allow-missing-template-keys",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "cascade",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "dry-run",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "field-manager",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "f",
+			LongOption: "filename",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "force",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "force-conflicts",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "grace-period",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "k",
+			LongOption: "kustomize",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "openapi-patch",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "o",
+			LongOption: "output",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "overwrite",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "prune",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "prune-whitelist",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "R",
+			LongOption: "recursive",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "l",
+			LongOption: "selector",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "server-side",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "show-managed-fields",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "template",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "timeout",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "validate",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "wait",
+			HasDefaultValue: true,
+		},
+		
+	},
+
+	"attach": {
+		
+		{
+			ShortOption: "c",
+			LongOption: "container",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "pod-running-timeout",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "q",
+			LongOption: "quiet",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "i",
+			LongOption: "stdin",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "t",
+			LongOption: "tty",
+			HasDefaultValue: true,
+		},
+		
+	},
+
+	"auth": {
+		
+	},
+
+	"autoscale": {
+		
+		{
+			ShortOption: "",
+			LongOption: "allow-missing-template-keys",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "cpu-percent",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "dry-run",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "field-manager",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "f",
+			LongOption: "filename",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "k",
+			LongOption: "kustomize",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "max",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "min",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "name",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "o",
+			LongOption: "output",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "R",
+			LongOption: "recursive",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "save-config",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "show-managed-fields",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "template",
+			HasDefaultValue: false,
+		},
+		
+	},
+
+	"certificate": {
+		
+	},
+
+	"cluster-info": {
+		
+	},
+
+	"completion": {
+		
+	},
+
+	"config": {
+		
+	},
+
+	"cordon": {
+		
+		{
+			ShortOption: "",
+			LongOption: "dry-run",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "l",
+			LongOption: "selector",
+			HasDefaultValue: false,
+		},
+		
+	},
+
+	"cp": {
+		
+		{
+			ShortOption: "c",
+			LongOption: "container",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "no-preserve",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "retries",
+			HasDefaultValue: false,
+		},
+		
+	},
+
+	"create": {
+		
+		{
+			ShortOption: "",
+			LongOption: "allow-missing-template-keys",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "dry-run",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "edit",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "field-manager",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "f",
+			LongOption: "filename",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "k",
+			LongOption: "kustomize",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "o",
+			LongOption: "output",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "raw",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "R",
+			LongOption: "recursive",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "save-config",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "l",
+			LongOption: "selector",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "show-managed-fields",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "template",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "validate",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "windows-line-endings",
+			HasDefaultValue: true,
+		},
+		
+	},
+
+	"debug": {
+		
+		{
+			ShortOption: "",
+			LongOption: "arguments-only",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "attach",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "c",
+			LongOption: "container",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "copy-to",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "env",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "image",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "image-pull-policy",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "q",
+			LongOption: "quiet",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "replace",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "same-node",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "set-image",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "share-processes",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "i",
+			LongOption: "stdin",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "target",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "t",
+			LongOption: "tty",
+			HasDefaultValue: true,
+		},
+		
+	},
+
+	"delete": {
+		
+		{
+			ShortOption: "",
+			LongOption: "all",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "A",
+			LongOption: "all-namespaces",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "cascade",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "dry-run",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "field-selector",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "f",
+			LongOption: "filename",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "force",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "grace-period",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "ignore-not-found",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "k",
+			LongOption: "kustomize",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "now",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "o",
+			LongOption: "output",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "raw",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "R",
+			LongOption: "recursive",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "l",
+			LongOption: "selector",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "timeout",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "wait",
+			HasDefaultValue: true,
+		},
+		
+	},
+
+	"describe": {
+		
+		{
+			ShortOption: "A",
+			LongOption: "all-namespaces",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "chunk-size",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "f",
+			LongOption: "filename",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "k",
+			LongOption: "kustomize",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "R",
+			LongOption: "recursive",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "l",
+			LongOption: "selector",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "show-events",
+			HasDefaultValue: true,
+		},
+		
+	},
+
+	"diff": {
+		
+		{
+			ShortOption: "",
+			LongOption: "field-manager",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "f",
+			LongOption: "filename",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "force-conflicts",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "k",
+			LongOption: "kustomize",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "prune",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "prune-allowlist",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "R",
+			LongOption: "recursive",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "l",
+			LongOption: "selector",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "server-side",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "show-managed-fields",
+			HasDefaultValue: true,
+		},
+		
+	},
+
+	"drain": {
+		
+		{
+			ShortOption: "",
+			LongOption: "chunk-size",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "delete-emptydir-data",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "disable-eviction",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "dry-run",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "force",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "grace-period",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "ignore-daemonsets",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "pod-selector",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "l",
+			LongOption: "selector",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "skip-wait-for-delete-timeout",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "timeout",
+			HasDefaultValue: false,
+		},
+		
+	},
+
+	"edit": {
+		
+		{
+			ShortOption: "",
+			LongOption: "allow-missing-template-keys",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "field-manager",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "f",
+			LongOption: "filename",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "k",
+			LongOption: "kustomize",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "o",
+			LongOption: "output",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "output-patch",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "R",
+			LongOption: "recursive",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "save-config",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "show-managed-fields",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "subresource",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "template",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "validate",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "windows-line-endings",
+			HasDefaultValue: true,
+		},
+		
+	},
+
+	"exec": {
+		
+		{
+			ShortOption: "c",
+			LongOption: "container",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "f",
+			LongOption: "filename",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "pod-running-timeout",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "q",
+			LongOption: "quiet",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "i",
+			LongOption: "stdin",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "t",
+			LongOption: "tty",
+			HasDefaultValue: true,
+		},
+		
+	},
+
+	"explain": {
+		
+		{
+			ShortOption: "",
+			LongOption: "api-version",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "recursive",
+			HasDefaultValue: true,
+		},
+		
+	},
+
+	"expose": {
+		
+		{
+			ShortOption: "",
+			LongOption: "allow-missing-template-keys",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "cluster-ip",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "dry-run",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "external-ip",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "field-manager",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "f",
+			LongOption: "filename",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "k",
+			LongOption: "kustomize",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "l",
+			LongOption: "labels",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "load-balancer-ip",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "name",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "o",
+			LongOption: "output",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "override-type",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "overrides",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "port",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "protocol",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "R",
+			LongOption: "recursive",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "save-config",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "selector",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "session-affinity",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "show-managed-fields",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "target-port",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "template",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "type",
+			HasDefaultValue: false,
+		},
+		
+	},
+
 	"get": {
 		
 		{
@@ -369,6 +1605,1064 @@ var KubeCtlOptions = map[string][]CLIOption{
 			ShortOption: "",
 			LongOption: "watch-only",
 			HasDefaultValue: true,
+		},
+		
+	},
+
+	"kustomize": {
+		
+		{
+			ShortOption: "",
+			LongOption: "as-current-user",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "enable-alpha-plugins",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "enable-helm",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "e",
+			LongOption: "env",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "helm-command",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "load-restrictor",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "mount",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "network",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "network-name",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "o",
+			LongOption: "output",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "reorder",
+			HasDefaultValue: false,
+		},
+		
+	},
+
+	"label": {
+		
+		{
+			ShortOption: "",
+			LongOption: "all",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "A",
+			LongOption: "all-namespaces",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "allow-missing-template-keys",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "dry-run",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "field-manager",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "field-selector",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "f",
+			LongOption: "filename",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "k",
+			LongOption: "kustomize",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "list",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "local",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "o",
+			LongOption: "output",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "overwrite",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "R",
+			LongOption: "recursive",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "resource-version",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "l",
+			LongOption: "selector",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "show-managed-fields",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "template",
+			HasDefaultValue: false,
+		},
+		
+	},
+
+	"logs": {
+		
+		{
+			ShortOption: "",
+			LongOption: "all-containers",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "c",
+			LongOption: "container",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "f",
+			LongOption: "follow",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "ignore-errors",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "insecure-skip-tls-verify-backend",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "limit-bytes",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "max-log-requests",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "pod-running-timeout",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "prefix",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "p",
+			LongOption: "previous",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "l",
+			LongOption: "selector",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "since",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "since-time",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "tail",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "timestamps",
+			HasDefaultValue: true,
+		},
+		
+	},
+
+	"patch": {
+		
+		{
+			ShortOption: "",
+			LongOption: "allow-missing-template-keys",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "dry-run",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "field-manager",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "f",
+			LongOption: "filename",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "k",
+			LongOption: "kustomize",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "local",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "o",
+			LongOption: "output",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "p",
+			LongOption: "patch",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "patch-file",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "R",
+			LongOption: "recursive",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "show-managed-fields",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "subresource",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "template",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "type",
+			HasDefaultValue: false,
+		},
+		
+	},
+
+	"plugin": {
+		
+	},
+
+	"port-forward": {
+		
+		{
+			ShortOption: "",
+			LongOption: "address",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "pod-running-timeout",
+			HasDefaultValue: false,
+		},
+		
+	},
+
+	"proxy": {
+		
+		{
+			ShortOption: "",
+			LongOption: "accept-hosts",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "accept-paths",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "address",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "api-prefix",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "append-server-path",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "disable-filter",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "keepalive",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "p",
+			LongOption: "port",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "reject-methods",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "reject-paths",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "u",
+			LongOption: "unix-socket",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "w",
+			LongOption: "www",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "P",
+			LongOption: "www-prefix",
+			HasDefaultValue: false,
+		},
+		
+	},
+
+	"replace": {
+		
+		{
+			ShortOption: "",
+			LongOption: "allow-missing-template-keys",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "cascade",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "dry-run",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "field-manager",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "f",
+			LongOption: "filename",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "force",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "grace-period",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "k",
+			LongOption: "kustomize",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "o",
+			LongOption: "output",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "raw",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "R",
+			LongOption: "recursive",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "save-config",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "show-managed-fields",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "subresource",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "template",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "timeout",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "validate",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "wait",
+			HasDefaultValue: true,
+		},
+		
+	},
+
+	"rollout": {
+		
+	},
+
+	"run": {
+		
+		{
+			ShortOption: "",
+			LongOption: "allow-missing-template-keys",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "annotations",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "attach",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "cascade",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "command",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "dry-run",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "env",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "expose",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "field-manager",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "f",
+			LongOption: "filename",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "force",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "grace-period",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "image",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "image-pull-policy",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "k",
+			LongOption: "kustomize",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "l",
+			LongOption: "labels",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "leave-stdin-open",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "o",
+			LongOption: "output",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "override-type",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "overrides",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "pod-running-timeout",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "port",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "privileged",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "q",
+			LongOption: "quiet",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "R",
+			LongOption: "recursive",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "restart",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "rm",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "save-config",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "show-managed-fields",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "i",
+			LongOption: "stdin",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "template",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "timeout",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "t",
+			LongOption: "tty",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "wait",
+			HasDefaultValue: true,
+		},
+		
+	},
+
+	"scale": {
+		
+		{
+			ShortOption: "",
+			LongOption: "all",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "allow-missing-template-keys",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "current-replicas",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "dry-run",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "f",
+			LongOption: "filename",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "k",
+			LongOption: "kustomize",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "o",
+			LongOption: "output",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "R",
+			LongOption: "recursive",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "replicas",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "resource-version",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "l",
+			LongOption: "selector",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "show-managed-fields",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "template",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "timeout",
+			HasDefaultValue: false,
+		},
+		
+	},
+
+	"set": {
+		
+	},
+
+	"taint": {
+		
+		{
+			ShortOption: "",
+			LongOption: "all",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "allow-missing-template-keys",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "dry-run",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "field-manager",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "o",
+			LongOption: "output",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "overwrite",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "l",
+			LongOption: "selector",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "show-managed-fields",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "template",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "validate",
+			HasDefaultValue: false,
+		},
+		
+	},
+
+	"top": {
+		
+	},
+
+	"uncordon": {
+		
+		{
+			ShortOption: "",
+			LongOption: "dry-run",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "l",
+			LongOption: "selector",
+			HasDefaultValue: false,
+		},
+		
+	},
+
+	"version": {
+		
+		{
+			ShortOption: "",
+			LongOption: "client",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "o",
+			LongOption: "output",
+			HasDefaultValue: false,
+		},
+		
+	},
+
+	"wait": {
+		
+		{
+			ShortOption: "",
+			LongOption: "all",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "A",
+			LongOption: "all-namespaces",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "allow-missing-template-keys",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "field-selector",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "f",
+			LongOption: "filename",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "for",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "local",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "o",
+			LongOption: "output",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "R",
+			LongOption: "recursive",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "l",
+			LongOption: "selector",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "show-managed-fields",
+			HasDefaultValue: true,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "template",
+			HasDefaultValue: false,
+		},
+		
+		{
+			ShortOption: "",
+			LongOption: "timeout",
+			HasDefaultValue: false,
 		},
 		
 	},
