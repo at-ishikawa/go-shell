@@ -7,14 +7,12 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"time"
 	"unicode/utf8"
 
 	"github.com/at-ishikawa/go-shell/internal/completion"
 	"github.com/at-ishikawa/go-shell/internal/keyboard"
 	"github.com/at-ishikawa/go-shell/internal/plugin"
 	"github.com/at-ishikawa/go-shell/internal/plugin/kubectl"
-	"github.com/ktr0731/go-fuzzyfinder"
 )
 
 type Shell struct {
@@ -22,6 +20,7 @@ type Shell struct {
 	in                 input
 	out                output
 	isEscapeKeyPressed bool
+	completionUi       *completion.Fzf
 	plugins            map[string]plugin.Plugin
 }
 
@@ -51,10 +50,11 @@ func NewShell(inFile *os.File, outFile *os.File) (Shell, error) {
 	}
 
 	return Shell{
-		history: hist,
-		in:      in,
-		out:     out,
-		plugins: plugins,
+		history:      hist,
+		in:           in,
+		out:          out,
+		completionUi: completionUi,
+		plugins:      plugins,
 	}, nil
 }
 
@@ -189,26 +189,24 @@ func (s *Shell) handleShortcutKey(inputCommand string, char rune, key keyboard.K
 		}
 		break
 	case keyboard.ControlR:
-		idx, err := fuzzyfinder.Find(s.history.list,
-			func(i int) string {
-				index := len(s.history.list) - i - 1
-				return fmt.Sprintf("%-100s %20d",
-					s.history.list[index].Command,
-					s.history.list[index].Status)
-			},
-			fuzzyfinder.WithPreviewWindow(func(i, width, height int) string {
-				if i < 0 {
-					return ""
-				}
-				index := len(s.history.list) - 1 - i
-				item := s.history.list[index]
-				return fmt.Sprintf("status: %d\nRunning at: %s", item.Status, item.RunAt.Format(time.RFC3339))
-			}))
+		lines := make([]string, 0, len(s.history.list)+1)
+		lines = append(lines, fmt.Sprintf("%-50s %20s", "command", "status"))
+		for _, historyItem := range s.history.list {
+			lines = append(lines, fmt.Sprintf("%-50s %20d",
+				historyItem.Command,
+				historyItem.Status))
+		}
+		// todo: show a preview like
+		//     item := s.history.list[index]
+		//     return fmt.Sprintf("status: %d\nRunning at: %s", item.Status, item.RunAt.Format(time.RFC3339))
+		result, err := s.completionUi.Complete(lines, completion.FzfOption{
+			HeaderLines: 1,
+		})
 		if err != nil {
 			return "", err
-		} else {
-			index := len(s.history.list) - idx - 1
-			inputCommand = s.history.list[index].Command
+		} else if result != "" {
+			selectedCommand := strings.Fields(result)
+			inputCommand = strings.Join(selectedCommand[:len(selectedCommand)-1], " ")
 		}
 	case keyboard.ControlP:
 		previousCommand := s.history.previous()
@@ -302,15 +300,11 @@ func (s *Shell) handleShortcutKey(inputCommand string, char rune, key keyboard.K
 					return "", err
 				}
 
-				idx, err := fuzzyfinder.Find(filePaths,
-					func(i int) string {
-						// return files[i].Name()
-						return filePaths[i]
-					})
+				selected, err := s.completionUi.Complete(filePaths, completion.FzfOption{})
 				if err != nil {
 					return "", err
 				} else {
-					inputCommand += filePaths[idx]
+					inputCommand += selected
 				}
 			}
 		}

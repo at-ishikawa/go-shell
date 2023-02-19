@@ -67,11 +67,11 @@ func NewFzf() *Fzf {
 		defaultFzfOption: defaultFzfOption,
 	}
 }
-func (f Fzf) CompleteMulti(lines []string, fzfOptions FzfOption) ([]string, error) {
+
+func (f Fzf) Complete(lines []string, fzfOptions FzfOption) (string, error) {
 	if fzfOptions.Bind != "" {
 		fzfOptions.Bind = f.defaultFzfOption.Bind
 	}
-	fzfOptions.isMulti = true
 
 	str := strings.Join(lines, "\n")
 	command := fmt.Sprintf("echo '%s' | %s %s", str, f.command, fzfOptions.String())
@@ -84,11 +84,22 @@ func (f Fzf) CompleteMulti(lines []string, fzfOptions FzfOption) ([]string, erro
 			// Script canceled by Ctrl-c
 			// Only for bash?: http://tldp.org/LDP/abs/html/exitcodes.html
 			if exitErr.ExitCode() == 130 {
-				return []string{}, nil
+				return "", nil
 			}
 		}
-		return []string{}, fmt.Errorf("failed to run the command %s: %w", command, err)
+		return strings.TrimSpace(string(out)), fmt.Errorf("failed to run the command %s: %w", command, err)
 	}
+	return strings.TrimSpace(string(out)), nil
+}
 
-	return strings.Split(strings.TrimSpace(string(out)), "\n"), nil
+func (f Fzf) CompleteMulti(lines []string, fzfOptions FzfOption) ([]string, error) {
+	fzfOptions.isMulti = true
+	rawResult, err := f.Complete(lines, fzfOptions)
+	if err != nil {
+		return []string{}, err
+	}
+	if rawResult == "" {
+		return []string{}, nil
+	}
+	return strings.Split(rawResult, "\n"), nil
 }
