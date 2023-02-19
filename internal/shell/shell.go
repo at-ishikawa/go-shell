@@ -316,6 +316,9 @@ func (s *Shell) handleShortcutKey(inputCommand string, char rune, key keyboard.K
 		if !utf8.ValidRune(char) {
 			break
 		}
+		if keyboard.ControlA <= key && key <= keyboard.ControlZ {
+			break
+		}
 
 		if s.out.cursor < 0 {
 			inputCommandIndex := len(inputCommand) + s.out.cursor
