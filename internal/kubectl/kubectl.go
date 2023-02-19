@@ -1,60 +1,60 @@
 package kubectl
 
+//go:generate go-shell-cli-option-parser kubectl -o "kubectloptions/kubectl_options.go"
+
 import (
 	"fmt"
 	"os/exec"
 	"strings"
 
+	"github.com/at-ishikawa/go-shell/internal/kubectl/kubectloptions"
+
 	"github.com/ktr0731/go-fuzzyfinder"
 )
-
-type Option struct {
-	name        string
-	shortOption string
-	longOption  string
-	hasValue    bool
-}
 
 type kubeCtlCommands struct {
 	name string
 	// bool means an option might have another argument
-	options []Option
+	options []kubectloptions.CLIOption
 }
 
 var (
 	// bool means an argument may have another argument
-	globalOptions = []Option{
+	globalOptions = []kubectloptions.CLIOption{
 		{
-			name:        "namespace",
-			shortOption: "n",
-			longOption:  "namespace",
-			hasValue:    true,
+			Name:            "namespace",
+			ShortOption:     "n",
+			LongOption:      "namespace",
+			HasDefaultValue: true,
 		},
 	}
 
 	kubeCtlCommandMaps = map[string]kubeCtlCommands{
+		"get": {
+			name:    "get",
+			options: kubectloptions.KubeCtlGetCommandOptions,
+		},
 		"describe": {
 			name: "describe",
-			options: []Option{
+			options: []kubectloptions.CLIOption{
 				{
-					name:        "selector",
-					shortOption: "l",
-					longOption:  "selector",
-					hasValue:    true,
+					ShortOption:     "l",
+					LongOption:      "selector",
+					HasDefaultValue: true,
 				},
 			},
 		},
 	}
 )
 
-func filterOptions(args []string, options []Option) ([]string, map[string]string) {
+func filterOptions(args []string, cliOptions []kubectloptions.CLIOption) ([]string, map[string]string) {
 	result := make([]string, 0)
 	resultOptions := make(map[string]string)
 
-	optionMap := make(map[string]Option)
-	for _, opt := range options {
-		optionMap["-"+opt.shortOption] = opt
-		optionMap["--"+opt.longOption] = opt
+	optionMap := make(map[string]kubectloptions.CLIOption)
+	for _, opt := range cliOptions {
+		optionMap["-"+opt.ShortOption] = opt
+		optionMap["--"+opt.LongOption] = opt
 	}
 
 	i := 0
@@ -70,11 +70,11 @@ func filterOptions(args []string, options []Option) ([]string, map[string]string
 			continue
 		}
 
-		resultOptions[opt.name] = ""
+		resultOptions[opt.Name] = ""
 
-		if opt.hasValue && i < len(args) {
+		if opt.HasDefaultValue && i < len(args) {
 			nextArg := args[i]
-			resultOptions[opt.name] = nextArg
+			resultOptions[opt.Name] = nextArg
 			i = i + 1
 		}
 	}
