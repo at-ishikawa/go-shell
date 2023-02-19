@@ -4,14 +4,16 @@ package kubectl
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 
-	"github.com/at-ishikawa/go-shell/internal/kubectl/kubectloptions"
 	"github.com/ktr0731/go-fuzzyfinder"
+
+	"github.com/at-ishikawa/go-shell/internal/kubectl/kubectloptions"
 )
 
-const kubeCtlCli = "kubectl"
+const Cli = "kubectl"
 
 func filterOptions(args []string, cliOptions []kubectloptions.CLIOption) ([]string, map[string]string) {
 	result := make([]string, 0)
@@ -67,6 +69,7 @@ func Suggest(args []string) ([]string, error) {
 
 	args, _ = filterOptions(args, subCommandOptions)
 	var resource string
+	var isMultipleResources bool
 	switch subCommand {
 	case "exec":
 	case "log", "logs":
@@ -74,6 +77,7 @@ func Suggest(args []string) ([]string, error) {
 		break
 	case "port-forward":
 		resource = "pods,services"
+		isMultipleResources = true
 		break
 	default:
 		if len(args) < 3 {
@@ -89,18 +93,78 @@ func Suggest(args []string) ([]string, error) {
 	if namespace != "" {
 		suggestOptions = append(suggestOptions, "-n", namespace)
 	}
-	result, err := exec.Command(kubeCtlCli, suggestOptions...).CombinedOutput()
+	kubeCtlGetResult, err := exec.Command(Cli, suggestOptions...).CombinedOutput()
 	if err != nil {
-		fmt.Println(string(result))
+		fmt.Println(string(kubeCtlGetResult))
 		return []string{}, err
 	}
-	lines := strings.Split(string(result), "\n")
+
+	return searchByFzf(string(kubeCtlGetResult), namespace, resource, isMultipleResources)
+}
+
+func searchByFzf(kubeCtlGetResult string,
+	namespace string,
+	resource string,
+	isMultipleResources bool) ([]string, error) {
+	fzfOptions := []string{
+		"--inline-info",
+		"--multi",
+		"--layout reverse",
+		"--preview-window down:70%",
+		"--bind ctrl-k:kill-line,ctrl-alt-t:toggle-preview,ctrl-alt-n:preview-down,ctrl-alt-p:preview-up,ctrl-alt-v:preview-page-down",
+	}
+	var previewCommand string
+	var hasHeader bool
+	if isMultipleResources {
+		previewCommand = fmt.Sprintf("%s describe {1}", Cli)
+		hasHeader = false
+	} else {
+		hasHeader = true
+		previewCommand = fmt.Sprintf("%s describe %s {1}", Cli, resource)
+	}
+	if namespace != "" {
+		previewCommand = previewCommand + " --namespace " + namespace
+	}
+	fzfOptions = append(fzfOptions,
+		fmt.Sprintf("--preview '%s'", previewCommand),
+	)
+	if hasHeader {
+		fzfOptions = append(fzfOptions, "--header-lines 1")
+	}
+
+	command := fmt.Sprintf("echo '%s' | fzf %s", kubeCtlGetResult, strings.Join(fzfOptions, " "))
+	execCmd := exec.Command("sh", "-c", command)
+	execCmd.Stderr = os.Stderr
+	execCmd.Stdin = os.Stdin
+	out, err := execCmd.Output()
+	if err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			// Script canceled by Ctrl-c
+			// Only for bash?: http://tldp.org/LDP/abs/html/exitcodes.html
+			if exitErr.ExitCode() == 130 {
+				return []string{}, nil
+			}
+		}
+		return []string{}, fmt.Errorf("failed to run the command %s: %w", command, err)
+	}
+
+	rows := strings.Split(strings.TrimSpace(string(out)), "\n")
+	names := make([]string, len(rows))
+	for i, row := range rows {
+		columns := strings.Fields(row)
+		names[i] = strings.TrimSpace(columns[0])
+	}
+
+	return names, nil
+}
+
+func searchByFzfFinder(result string) ([]string, error) {
+	lines := strings.Split(result, "\n")
 	index, err := fuzzyfinder.Find(
 		lines,
 		func(i int) string {
 			return lines[i]
 		},
-		fuzzyfinder.WithHeader(strings.Join(suggestOptions, " ")),
 		fuzzyfinder.WithPreviewWindow(func(i, w, h int) string {
 			if i == -1 {
 				return ""
@@ -110,5 +174,5 @@ func Suggest(args []string) ([]string, error) {
 
 	return []string{
 		strings.Split(lines[index], " ")[0],
-	}, nil
+	}, err
 }

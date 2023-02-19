@@ -250,12 +250,16 @@ func (s *Shell) handleShortcutKey(inputCommand string, char rune, key keyboard.K
 		break
 	case keyboard.Tab:
 		args := strings.Split(inputCommand, " ")
-		if args[0] == "kubectl" {
-			suggested, err := kubectl.Suggest(args)
+		var suggested []string
+		if args[0] == kubectl.Cli {
+			var err error
+			suggested, err = kubectl.Suggest(args)
 			if err != nil {
 				fmt.Println(err)
 				break
 			}
+		}
+		if len(suggested) > 0 {
 			inputCommand = inputCommand + strings.Join(suggested, " ")
 		}
 		break
