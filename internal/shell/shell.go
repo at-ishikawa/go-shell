@@ -13,8 +13,7 @@ import (
 )
 
 type Shell struct {
-	historyIndex       int
-	histories          []string
+	history            history
 	in                 input
 	out                output
 	isEscapeKeyPressed bool
@@ -28,9 +27,9 @@ func NewShell(inFile *os.File, outFile *os.File) (Shell, error) {
 	out := initOutput(outFile)
 
 	return Shell{
-		histories: []string{},
-		in:        in,
-		out:       out,
+		history: newHistory(),
+		in:      in,
+		out:     out,
 	}, nil
 }
 
@@ -42,9 +41,6 @@ func (s Shell) Run() error {
 	}
 
 	for {
-		s.out.initNewLine()
-		s.out.setCursor(0)
-
 		inputCommand, err := s.getInputCommand()
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
@@ -54,8 +50,7 @@ func (s Shell) Run() error {
 			continue
 		}
 
-		s.histories = append(s.histories, inputCommand)
-		s.historyIndex = len(s.histories)
+		s.history.add(inputCommand)
 		// For some reason, term.Restore for an input is required before executing a command
 		if err := s.in.restore(); err != nil {
 			fmt.Fprintln(os.Stderr, err)
@@ -147,31 +142,28 @@ func (s *Shell) handleShortcutKey(inputCommand string, char rune, key keyboard.K
 		}
 		break
 	case keyboard.ControlR:
-		idx, err := fuzzyfinder.Find(s.histories,
+		idx, err := fuzzyfinder.Find(s.history.list,
 			func(i int) string {
-				return s.histories[i]
+				return s.history.list[i]
 			})
 		if err != nil {
 			return "", err
 		} else {
-			inputCommand = s.histories[idx]
+			inputCommand = s.history.list[idx]
 		}
 	case keyboard.ControlP:
-		if 0 < s.historyIndex {
-			s.historyIndex--
-			inputCommand = s.histories[s.historyIndex]
+		previousCommand := s.history.previous()
+		if previousCommand != "" {
+			inputCommand = previousCommand
 		}
-
 		break
 	case keyboard.ControlN:
-		if len(s.histories)-1 > s.historyIndex {
-			s.historyIndex++
-			inputCommand = s.histories[s.historyIndex]
-		} else if len(s.histories) > s.historyIndex {
-			s.historyIndex++
-			inputCommand = ""
+		nextCommand, ok := s.history.next()
+		if ok {
+			inputCommand = nextCommand
 		}
 		break
+
 	case keyboard.ControlW:
 		if -s.out.cursor >= len(inputCommand) {
 			break
@@ -237,8 +229,10 @@ func (s *Shell) handleShortcutKey(inputCommand string, char rune, key keyboard.K
 }
 
 func (s Shell) getInputCommand() (string, error) {
-	inputCommand := ""
+	s.out.initNewLine()
+	s.out.setCursor(0)
 
+	inputCommand := ""
 	for {
 		char, key, err := s.in.Read()
 		if err != nil {

@@ -9,6 +9,7 @@ type output struct {
 	fd     int
 	file   *os.File
 	cursor int
+	prompt string
 }
 
 func initOutput(out *os.File) output {
@@ -16,6 +17,7 @@ func initOutput(out *os.File) output {
 		fd:     int(out.Fd()),
 		file:   out,
 		cursor: 0,
+		prompt: "$ ",
 	}
 }
 
@@ -47,7 +49,7 @@ func (o *output) clearLine() error {
 
 func (o *output) writeLine(str string) error {
 	o.clearLine()
-	o.file.WriteString("$ " + str)
+	o.file.WriteString(o.prompt + str)
 
 	if o.cursor < 0 {
 		fmt.Fprintf(o.file, "\033[%dD", -o.cursor)

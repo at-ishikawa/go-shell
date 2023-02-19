@@ -22,3 +22,4 @@ It's still under development.
 # Unsupported features
 
 - Pipe and redirection
+- Variables and functions
