@@ -10,8 +10,10 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/at-ishikawa/go-shell/internal/completion"
 	"github.com/at-ishikawa/go-shell/internal/keyboard"
-	"github.com/at-ishikawa/go-shell/internal/kubectl"
+	"github.com/at-ishikawa/go-shell/internal/plugin"
+	"github.com/at-ishikawa/go-shell/internal/plugin/kubectl"
 	"github.com/ktr0731/go-fuzzyfinder"
 )
 
@@ -20,6 +22,7 @@ type Shell struct {
 	in                 input
 	out                output
 	isEscapeKeyPressed bool
+	plugins            map[string]plugin.Plugin
 }
 
 func NewShell(inFile *os.File, outFile *os.File) (Shell, error) {
@@ -41,10 +44,17 @@ func NewShell(inFile *os.File, outFile *os.File) (Shell, error) {
 		return Shell{}, fmt.Errorf("failed to load a history file: %w", err)
 	}
 
+	completionUi := completion.NewFzf()
+	kubeCtlPlugin := kubectl.NewKubeCtlPlugin(completionUi)
+	plugins := map[string]plugin.Plugin{
+		kubeCtlPlugin.Command(): kubeCtlPlugin,
+	}
+
 	return Shell{
 		history: hist,
 		in:      in,
 		out:     out,
+		plugins: plugins,
 	}, nil
 }
 
@@ -254,9 +264,10 @@ func (s *Shell) handleShortcutKey(inputCommand string, char rune, key keyboard.K
 
 		args := strings.Split(inputCommand, " ")
 		var suggested []string
-		if args[0] == kubectl.Cli {
+		suggestPlugin, ok := s.plugins[args[0]]
+		if ok {
 			var err error
-			suggested, err = kubectl.Suggest(args)
+			suggested, err = suggestPlugin.Suggest(args)
 			if err != nil {
 				fmt.Println(err)
 				break

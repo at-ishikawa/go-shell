@@ -4,16 +4,28 @@ package kubectl
 
 import (
 	"fmt"
-	"os"
 	"os/exec"
 	"strings"
 
+	"github.com/at-ishikawa/go-shell/internal/completion"
+	"github.com/at-ishikawa/go-shell/internal/plugin"
+	"github.com/at-ishikawa/go-shell/internal/plugin/kubectl/kubectloptions"
 	"github.com/ktr0731/go-fuzzyfinder"
-
-	"github.com/at-ishikawa/go-shell/internal/kubectl/kubectloptions"
 )
 
 const Cli = "kubectl"
+
+var _ plugin.Plugin = new(KubeCtlPlugin)
+
+type KubeCtlPlugin struct {
+	completionUi *completion.Fzf
+}
+
+func NewKubeCtlPlugin(completionUi *completion.Fzf) plugin.Plugin {
+	return &KubeCtlPlugin{
+		completionUi: completionUi,
+	}
+}
 
 func filterOptions(args []string, cliOptions []kubectloptions.CLIOption) ([]string, map[string]string) {
 	result := make([]string, 0)
@@ -49,7 +61,11 @@ func filterOptions(args []string, cliOptions []kubectloptions.CLIOption) ([]stri
 	return result, resultOptions
 }
 
-func Suggest(args []string) ([]string, error) {
+func (k *KubeCtlPlugin) Command() string {
+	return Cli
+}
+
+func (k *KubeCtlPlugin) Suggest(args []string) ([]string, error) {
 	if len(args) < 2 {
 		return []string{}, nil
 	}
@@ -99,10 +115,10 @@ func Suggest(args []string) ([]string, error) {
 		return []string{}, err
 	}
 
-	return searchByFzf(string(kubeCtlGetResult), namespace, resource, isMultipleResources)
+	return k.searchByFzf(kubeCtlGetResult, namespace, resource, isMultipleResources)
 }
 
-func searchByFzf(kubeCtlGetResult string,
+func (k KubeCtlPlugin) searchByFzf(kubeCtlGetResult []byte,
 	namespace string,
 	resource string,
 	isMultipleResources bool) ([]string, error) {
@@ -132,29 +148,16 @@ func searchByFzf(kubeCtlGetResult string,
 		fzfOptions = append(fzfOptions, "--header-lines 1")
 	}
 
-	command := fmt.Sprintf("echo '%s' | fzf %s", kubeCtlGetResult, strings.Join(fzfOptions, " "))
-	execCmd := exec.Command("sh", "-c", command)
-	execCmd.Stderr = os.Stderr
-	execCmd.Stdin = os.Stdin
-	out, err := execCmd.Output()
+	rows, err := k.completionUi.CompleteBytes(kubeCtlGetResult, fzfOptions)
 	if err != nil {
-		if exitErr, ok := err.(*exec.ExitError); ok {
-			// Script canceled by Ctrl-c
-			// Only for bash?: http://tldp.org/LDP/abs/html/exitcodes.html
-			if exitErr.ExitCode() == 130 {
-				return []string{}, nil
-			}
-		}
-		return []string{}, fmt.Errorf("failed to run the command %s: %w", command, err)
+		return []string{}, err
 	}
 
-	rows := strings.Split(strings.TrimSpace(string(out)), "\n")
 	names := make([]string, len(rows))
 	for i, row := range rows {
 		columns := strings.Fields(row)
 		names[i] = strings.TrimSpace(columns[0])
 	}
-
 	return names, nil
 }
 

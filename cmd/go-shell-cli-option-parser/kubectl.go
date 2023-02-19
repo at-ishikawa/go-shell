@@ -9,7 +9,8 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/at-ishikawa/go-shell/internal/kubectl/kubectloptions"
+	"github.com/at-ishikawa/go-shell/internal/plugin/kubectl/kubectloptions"
+
 	"github.com/spf13/cobra"
 )
 
@@ -66,7 +67,6 @@ func newOption(output []byte) []kubectloptions.CLIOption {
 		}
 
 		commandOptions = append(commandOptions, kubectloptions.CLIOption{
-			Name:            paramMap["LongOption"],
 			ShortOption:     paramMap["ShortOption"],
 			LongOption:      paramMap["LongOption"],
 			HasDefaultValue: hasDefaultValue,
