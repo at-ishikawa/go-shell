@@ -378,5 +378,134 @@ func Test_HandleShortcutKey(t *testing.T) {
 		}
 	})
 
+	t.Run("Escape mode", func(t *testing.T) {
+		testCases := []struct {
+			name        string
+			shell       Shell
+			command     string
+			typedChar   rune
+			keyCode     keyboard.Key
+			wantCommand string
+			wantCursor  int
+			wantErr     error
+		}{
+			{
+				name:        "Move a cursor a word back if a previous char is a space",
+				command:     "a b  ",
+				keyCode:     keyboard.B,
+				wantCommand: "a b  ",
+				wantCursor:  -2,
+			},
+			{
+				name:        "Move a cursor a word back if a previous char is a letter",
+				command:     "a bc",
+				keyCode:     keyboard.B,
+				wantCommand: "a bc",
+				wantCursor:  -2,
+			},
+			{
+				name: "Move a cursor a word back if a previous char is a space in the middle of the command",
+				shell: Shell{
+					out: output{
+						cursor: -5,
+					},
+				},
+				command:     "a b  c d e",
+				keyCode:     keyboard.B,
+				wantCommand: "a b  c d e",
+				wantCursor:  -7,
+			},
+			{
+				name: "Move a cursor a word back if a previous char is a letter in the middle of a command",
+				shell: Shell{
+					out: output{
+						cursor: -3,
+					},
+				},
+				command:     "a bcd e",
+				keyCode:     keyboard.B,
+				wantCommand: "a bcd e",
+				wantCursor:  -5,
+			},
+			{
+				name:    "Move a cursor a word back when no command",
+				keyCode: keyboard.B,
+			},
+			{
+				name: "Move a cursor a word back if a cursor is on the beginning of the command",
+				shell: Shell{
+					out: output{
+						cursor: -1,
+					},
+				},
+				command:     "a",
+				keyCode:     keyboard.B,
+				wantCommand: "a",
+				wantCursor:  -1,
+			},
+			{
+				name:        "Move a cursor a word back if a command is only space",
+				command:     " ",
+				keyCode:     keyboard.B,
+				wantCommand: " ",
+				wantCursor:  -1,
+			},
+
+			{
+				name:        "Move a cursor a word forward if the next char is a space",
+				shell:       Shell{out: output{cursor: -2}},
+				command:     "a b",
+				keyCode:     keyboard.F,
+				wantCommand: "a b",
+				wantCursor:  -1,
+			},
+			{
+				name:        "Move a cursor a word forward if the next char is a letter before the last word",
+				shell:       Shell{out: output{cursor: -1}},
+				command:     "a bc d",
+				keyCode:     keyboard.F,
+				wantCommand: "a bc d",
+			},
+			{
+				name:        "Move a cursor a word forward if the next char is a letter",
+				shell:       Shell{out: output{cursor: -4}},
+				command:     "a bc d",
+				keyCode:     keyboard.F,
+				wantCommand: "a bc d",
+				wantCursor:  -2,
+			},
+			{
+				name:    "Move a cursor a word forward when no command",
+				keyCode: keyboard.F,
+			},
+			{
+				name:        "Move a cursor a word forward if a cursor is on the end of the command",
+				command:     "a",
+				keyCode:     keyboard.F,
+				wantCommand: "a",
+			},
+			{
+				name:        "Move a cursor a word forward if a command is only space",
+				shell:       Shell{out: output{cursor: -1}},
+				command:     " ",
+				keyCode:     keyboard.F,
+				wantCommand: " ",
+			},
+		}
+
+		for _, tc := range testCases {
+			t.Run(tc.name, func(t *testing.T) {
+				gotLine, gotErr := tc.shell.handleShortcutKey(tc.command, tc.typedChar, keyboard.Escape)
+				assert.True(t, tc.shell.isEscapeKeyPressed)
+
+				gotLine, gotErr = tc.shell.handleShortcutKey(gotLine, tc.typedChar, tc.keyCode)
+				assert.False(t, tc.shell.isEscapeKeyPressed)
+				assert.Equal(t, tc.wantCommand, gotLine)
+				assert.Equal(t, tc.wantCursor, tc.shell.out.cursor)
+				assert.Equal(t, tc.wantErr, gotErr)
+			})
+		}
+	})
+
 	// todo: Test Tab
 }

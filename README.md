@@ -14,3 +14,8 @@ It's still under development.
 | Ctrl-p | Show the previous command in a history |
 | Ctrl-n | Show the next command in a history |
 | Ctrl-r | Search a command history |
+
+
+# Unsupported features
+
+- Pipe and redirection

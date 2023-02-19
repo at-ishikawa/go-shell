@@ -5,7 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
-	"unicode"
+	"unicode/utf8"
 
 	"github.com/at-ishikawa/go-shell/internal/keyboard"
 	"github.com/at-ishikawa/go-shell/internal/kubectl"
@@ -13,10 +13,11 @@ import (
 )
 
 type Shell struct {
-	historyIndex int
-	histories    []string
-	in           input
-	out          output
+	historyIndex       int
+	histories          []string
+	in                 input
+	out                output
+	isEscapeKeyPressed bool
 }
 
 func NewShell(inFile *os.File, outFile *os.File) (Shell, error) {
@@ -69,6 +70,62 @@ func (s Shell) Run() error {
 }
 
 func (s *Shell) handleShortcutKey(inputCommand string, char rune, key keyboard.Key) (string, error) {
+	if s.isEscapeKeyPressed {
+		switch key {
+		case keyboard.B:
+			if -s.out.cursor >= len(inputCommand) {
+				break
+			}
+
+			subStrBeforeCursor := inputCommand[:len(inputCommand)+s.out.cursor]
+			previousChar := inputCommand[len(inputCommand)+s.out.cursor-1]
+
+			var subStrLastIndex int
+			if previousChar != ' ' {
+				subStrLastIndex = strings.LastIndex(subStrBeforeCursor, " ") + 1
+				s.out.cursor = -(len(subStrBeforeCursor) - subStrLastIndex) + s.out.cursor
+			} else {
+				for subStrLastIndex = len(subStrBeforeCursor) - 2; subStrLastIndex >= 0; subStrLastIndex-- {
+					if subStrBeforeCursor[subStrLastIndex] != ' ' {
+						break
+					}
+				}
+				s.out.cursor = -(len(subStrBeforeCursor) - subStrLastIndex) + s.out.cursor + 1
+			}
+
+			break
+		case keyboard.F:
+			if s.out.cursor == 0 {
+				break
+			}
+
+			subStrAfterCursor := inputCommand[len(inputCommand)+s.out.cursor:]
+			nextChar := inputCommand[len(inputCommand)+s.out.cursor]
+
+			var subStrFirstIndex int
+			if nextChar != ' ' {
+				subStrFirstIndex = strings.Index(subStrAfterCursor, " ")
+				if subStrFirstIndex > 0 {
+					s.out.cursor += subStrFirstIndex
+				} else {
+					s.out.cursor = 0
+				}
+			} else {
+				var ch rune
+				for subStrFirstIndex, ch = range subStrAfterCursor {
+					if ch == ' ' {
+						break
+					}
+				}
+				s.out.cursor += subStrFirstIndex + 1
+			}
+
+			break
+		}
+		s.isEscapeKeyPressed = false
+		return inputCommand, nil
+	}
+
 	switch key {
 	case keyboard.Backspace:
 		if len(inputCommand) == 0 {
@@ -131,6 +188,9 @@ func (s *Shell) handleShortcutKey(inputCommand string, char rune, key keyboard.K
 			s.out.moveCursor(-1)
 		}
 		break
+	case keyboard.Escape:
+		s.isEscapeKeyPressed = true
+		break
 	case keyboard.Tab:
 		args := strings.Split(inputCommand, " ")
 		if args[0] == "kubectl" {
@@ -143,7 +203,7 @@ func (s *Shell) handleShortcutKey(inputCommand string, char rune, key keyboard.K
 		}
 		break
 	default:
-		if !unicode.IsLetter(char) && string(char) != " " {
+		if !utf8.ValidRune(char) {
 			break
 		}
 
@@ -164,7 +224,7 @@ func (s Shell) getInputCommand() (string, error) {
 	for {
 		char, key, err := s.in.Read()
 		if err != nil {
-			s.out.writeLine("")
+			s.out.newLine()
 			return "", err
 		}
 

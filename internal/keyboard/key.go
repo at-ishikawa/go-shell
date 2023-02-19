@@ -2,6 +2,37 @@ package keyboard
 
 type Key int
 
+// https://pkg.go.dev/gobot.io/x/gobot/platforms/keyboard
+const (
+	Tilde = iota + 96
+	A
+	B
+	C
+	D
+	E
+	F
+	G
+	H
+	I
+	J
+	K
+	L
+	M
+	N
+	O
+	P
+	Q
+	R
+	S
+	T
+	U
+	V
+	W
+	X
+	Y
+	Z
+)
+
 // https://github.com/c-bata/go-prompt/blob/82a912274504477990ecf7c852eebb7c85291772/input.go#L34
 const (
 	Key_Unknown Key = 0
@@ -21,6 +52,9 @@ const (
 )
 
 var keys = []Key{
+	B,
+	F,
+
 	ControlA,
 	ControlB,
 	ControlC,
