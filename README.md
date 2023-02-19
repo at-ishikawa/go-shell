@@ -23,4 +23,4 @@ It's still under development.
 
 - Pipe and redirection
 - Variables and functions
-- No support for string
+- No support for string except double quotes

@@ -18,17 +18,54 @@ func newCommandRunner(out output, homeDir string) commandRunner {
 	}
 }
 
-func (cr commandRunner) parseInput(inputCommand string) (string, []string) {
-	inputFields := strings.Fields(inputCommand)
-	if len(inputFields) == 0 {
-		return "", nil
+// todo: may replace with a oss tokenizer and parser like goyacc
+func (cr commandRunner) parseInput(inputCommand string) []string {
+	// inputFields := strings.Fields(inputCommand)
+	var inputFields []string
+	var isInStr bool
+	lastIndex := 0
+	lastQuoteIndex := 0
+	for i, char := range inputCommand {
+		if char == ' ' && !isInStr {
+			if i > lastIndex+1 {
+				inputFields = append(inputFields, inputCommand[lastIndex:i])
+			}
+			lastIndex = i + 1
+		} else if char == '"' {
+			if i > 0 {
+				lastChar := inputCommand[i-1]
+				if lastChar == '\\' {
+					continue
+				}
+			}
+			if isInStr {
+				if lastQuoteIndex == 0 || inputCommand[lastQuoteIndex-1] == ' ' {
+					inputFields = append(inputFields, inputCommand[lastIndex+1:i])
+				} else {
+					inputFields = append(inputFields, inputCommand[lastIndex:i])
+				}
+				lastIndex = i + 1
+				isInStr = false
+			} else {
+				lastQuoteIndex = i
+				isInStr = true
+			}
+		}
 	}
-	command := inputFields[0]
+	if lastIndex < len(inputCommand) {
+		inputFields = append(inputFields, inputCommand[lastIndex:])
+	}
+	return inputFields
+}
 
+func (cr commandRunner) compileInput(inputCommand string) (string, []string) {
+	inputFields := cr.parseInput(inputCommand)
+	command := inputFields[0]
 	var args []string
 	if len(inputFields) > 1 {
 		args = inputFields[1:]
-		for i, arg := range args {
+		for i := 0; i < len(args); i++ {
+			arg := args[i]
 			// todo: file path only
 			args[i] = strings.ReplaceAll(arg, "~", cr.homeDir)
 		}
@@ -37,7 +74,7 @@ func (cr commandRunner) parseInput(inputCommand string) (string, []string) {
 }
 
 func (cr commandRunner) run(inputCommand string) (int, error) {
-	command, args := cr.parseInput(inputCommand)
+	command, args := cr.compileInput(inputCommand)
 	if command == "" {
 		return 0, nil
 	}
