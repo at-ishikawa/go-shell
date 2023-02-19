@@ -125,15 +125,20 @@ func getPreviousWord(str string, cursor int) string {
 	previousChar := str[len(str)+cursor-1]
 
 	var subStrLastIndex int
-	if previousChar != ' ' {
-		subStrLastIndex = strings.LastIndex(subStrBeforeCursor, " ") + 1
-	} else {
+	if previousChar == ' ' {
 		for subStrLastIndex = len(subStrBeforeCursor) - 2; subStrLastIndex >= 0; subStrLastIndex-- {
 			if subStrBeforeCursor[subStrLastIndex] != ' ' {
 				break
 			}
 		}
+		for ; subStrLastIndex >= 0; subStrLastIndex-- {
+			if subStrBeforeCursor[subStrLastIndex] == ' ' {
+				break
+			}
+		}
 		subStrLastIndex++
+	} else {
+		subStrLastIndex = strings.LastIndex(subStrBeforeCursor, " ") + 1
 	}
 	return subStrBeforeCursor[subStrLastIndex:]
 }
@@ -149,13 +154,20 @@ func getNextWord(str string, cursor int) string {
 			subStrFirstIndex = len(subStrAfterCursor)
 		}
 	} else {
-		var ch rune
-		for subStrFirstIndex, ch = range subStrAfterCursor {
+		subStrFirstIndex = 0
+		for ; subStrFirstIndex < len(subStrAfterCursor); subStrFirstIndex++ {
+			ch := subStrAfterCursor[subStrFirstIndex]
 			if ch == ' ' {
 				break
 			}
 		}
 		subStrFirstIndex++
+		for ; subStrFirstIndex < len(subStrAfterCursor); subStrFirstIndex++ {
+			ch := subStrAfterCursor[subStrFirstIndex]
+			if ch == ' ' {
+				break
+			}
+		}
 	}
 	return subStrAfterCursor[:subStrFirstIndex]
 }

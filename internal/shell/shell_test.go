@@ -445,7 +445,7 @@ func Test_HandleShortcutKey(t *testing.T) {
 				command:     "a b  ",
 				keyCode:     keyboard.B,
 				wantCommand: "a b  ",
-				wantCursor:  -2,
+				wantCursor:  -3,
 			},
 			{
 				name:        "Move a cursor a word back if a previous char is a letter",
@@ -464,7 +464,7 @@ func Test_HandleShortcutKey(t *testing.T) {
 				command:     "a b  c d e",
 				keyCode:     keyboard.B,
 				wantCommand: "a b  c d e",
-				wantCursor:  -7,
+				wantCursor:  -8,
 			},
 			{
 				name: "Move a cursor a word back if a previous char is a letter in the middle of a command",
@@ -508,7 +508,7 @@ func Test_HandleShortcutKey(t *testing.T) {
 				command:     "a b",
 				keyCode:     keyboard.F,
 				wantCommand: "a b",
-				wantCursor:  -1,
+				wantCursor:  0,
 			},
 			{
 				name:        "Move a cursor a word forward if the next char is a letter before the last word",
