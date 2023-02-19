@@ -290,6 +290,16 @@ func Test_HandleShortcutKey(t *testing.T) {
 	})
 
 	t.Run("History shortcuts", func(t *testing.T) {
+		newHistoryFromCommands := func(strs []string) []historyItem {
+			list := []historyItem{}
+			for _, str := range strs {
+				list = append(list, historyItem{
+					Command: str,
+				})
+			}
+			return list
+		}
+
 		testCases := []struct {
 			name             string
 			shell            Shell
@@ -305,10 +315,10 @@ func Test_HandleShortcutKey(t *testing.T) {
 				name: "Show the previous command from a history from a command",
 				shell: Shell{
 					history: history{
-						list: []string{
+						list: newHistoryFromCommands([]string{
 							"command1",
 							"command2",
-						},
+						}),
 						index: 2,
 					},
 				},
@@ -321,10 +331,10 @@ func Test_HandleShortcutKey(t *testing.T) {
 				name: "Show the previous command from a history from the last command",
 				shell: Shell{
 					history: history{
-						list: []string{
+						list: newHistoryFromCommands([]string{
 							"command1",
 							"command2",
-						},
+						}),
 						index: 1,
 					},
 				},
@@ -341,9 +351,9 @@ func Test_HandleShortcutKey(t *testing.T) {
 				name: "Show the previous command from a history when there is no history",
 				shell: Shell{
 					history: history{
-						list: []string{
+						list: newHistoryFromCommands([]string{
 							"command1",
-						},
+						}),
 						index: 1,
 					},
 				},
@@ -357,10 +367,10 @@ func Test_HandleShortcutKey(t *testing.T) {
 				name: "Show the next command from a history",
 				shell: Shell{
 					history: history{
-						list: []string{
+						list: newHistoryFromCommands([]string{
 							"command1",
 							"command2",
-						},
+						}),
 						index: 0,
 					},
 				},
@@ -373,10 +383,10 @@ func Test_HandleShortcutKey(t *testing.T) {
 				name: "Show the next command when no more command",
 				shell: Shell{
 					history: history{
-						list: []string{
+						list: newHistoryFromCommands([]string{
 							"command1",
 							"command2",
-						},
+						}),
 						index: 1,
 					},
 				},
@@ -393,9 +403,9 @@ func Test_HandleShortcutKey(t *testing.T) {
 				name: "Show the next history when there is no history",
 				shell: Shell{
 					history: history{
-						list: []string{
+						list: newHistoryFromCommands([]string{
 							"command1",
-						},
+						}),
 						index: 2,
 					},
 				},

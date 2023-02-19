@@ -26,8 +26,20 @@ func NewShell(inFile *os.File, outFile *os.File) (Shell, error) {
 	}
 	out := initOutput(outFile)
 
+	conf, err := newConfig()
+	if err != nil {
+		return Shell{}, err
+	}
+	if err := conf.makeDir(); err != nil {
+		return Shell{}, fmt.Errorf("failed to make a config directory: %w", err)
+	}
+	hist := newHistory(conf)
+	if err := hist.loadFile(); err != nil {
+		return Shell{}, fmt.Errorf("failed to load a history file: %w", err)
+	}
+
 	return Shell{
-		history: newHistory(),
+		history: hist,
 		in:      in,
 		out:     out,
 	}, nil
@@ -46,8 +58,12 @@ func (s Shell) Run() error {
 			fmt.Fprintln(os.Stderr, err)
 			continue
 		}
-		if strings.TrimSpace(inputCommand) == "" {
+		inputCommand = strings.TrimSpace(inputCommand)
+		if inputCommand == "" {
 			continue
+		}
+		if inputCommand == "exit" {
+			break
 		}
 
 		s.history.add(inputCommand)
@@ -62,6 +78,11 @@ func (s Shell) Run() error {
 			return err
 		}
 	}
+	if err := s.history.saveFile(); err != nil {
+		return fmt.Errorf("failed to write a history to a file: %w", err)
+	}
+
+	return nil
 }
 
 func getPreviousWord(str string, cursor int) string {
@@ -144,12 +165,12 @@ func (s *Shell) handleShortcutKey(inputCommand string, char rune, key keyboard.K
 	case keyboard.ControlR:
 		idx, err := fuzzyfinder.Find(s.history.list,
 			func(i int) string {
-				return s.history.list[i]
+				return s.history.list[i].Command
 			})
 		if err != nil {
 			return "", err
 		} else {
-			inputCommand = s.history.list[idx]
+			inputCommand = s.history.list[idx].Command
 		}
 	case keyboard.ControlP:
 		previousCommand := s.history.previous()
@@ -268,11 +289,7 @@ func (s Shell) getInputCommand() (string, error) {
 func (s Shell) runCommand(commandStr string) error {
 	commandStr = strings.TrimSuffix(commandStr, "\n")
 	arrCommandStr := strings.Fields(commandStr)
-	switch arrCommandStr[0] {
-	case "exit":
-		os.Exit(0)
-		// add another case here for custom commands.
-	}
+
 	cmd := exec.Command(arrCommandStr[0], arrCommandStr[1:]...)
 	cmd.Stderr = os.Stderr
 	cmd.Stdout = s.out.file
