@@ -228,6 +228,35 @@ func Test_HandleShortcutKey(t *testing.T) {
 			},
 
 			{
+				name: "Delete a word before a cursor",
+				shell: Shell{
+					out: output{
+						cursor: -2,
+					},
+				},
+				command:     "abc d",
+				keyCode:     keyboard.ControlW,
+				wantCommand: " d",
+				wantCursor:  -2,
+			},
+			{
+				name:    "Delete a word before a cursor when no command",
+				keyCode: keyboard.ControlW,
+			},
+			{
+				name: "Delete a word before a cursor on the beginning of the command",
+				shell: Shell{
+					out: output{
+						cursor: -2,
+					},
+				},
+				command:     "ab",
+				keyCode:     keyboard.ControlW,
+				wantCommand: "ab",
+				wantCursor:  -2,
+			},
+
+			{
 				name: "Delete a line after a cursor",
 				shell: Shell{
 					out: output{

@@ -45,6 +45,7 @@ const (
 	ControlN        = 0x0e
 	ControlP        = 0x10
 	ControlR        = 0x12
+	ControlW        = 0x17
 	Escape          = 0x1b
 	Enter           = 0x0D
 	Tab             = 0x9
@@ -64,6 +65,7 @@ var keys = []Key{
 	ControlN,
 	ControlP,
 	ControlR,
+	ControlW,
 	Escape,
 	Enter,
 	Tab,

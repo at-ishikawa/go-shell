@@ -69,6 +69,46 @@ func (s Shell) Run() error {
 	}
 }
 
+func getPreviousWord(str string, cursor int) string {
+	subStrBeforeCursor := str[:len(str)+cursor]
+	previousChar := str[len(str)+cursor-1]
+
+	var subStrLastIndex int
+	if previousChar != ' ' {
+		subStrLastIndex = strings.LastIndex(subStrBeforeCursor, " ") + 1
+	} else {
+		for subStrLastIndex = len(subStrBeforeCursor) - 2; subStrLastIndex >= 0; subStrLastIndex-- {
+			if subStrBeforeCursor[subStrLastIndex] != ' ' {
+				break
+			}
+		}
+		subStrLastIndex++
+	}
+	return subStrBeforeCursor[subStrLastIndex:]
+}
+
+func getNextWord(str string, cursor int) string {
+	subStrAfterCursor := str[len(str)+cursor:]
+	nextChar := str[len(str)+cursor]
+
+	var subStrFirstIndex int
+	if nextChar != ' ' {
+		subStrFirstIndex = strings.Index(subStrAfterCursor, " ")
+		if subStrFirstIndex < 0 {
+			subStrFirstIndex = len(subStrAfterCursor)
+		}
+	} else {
+		var ch rune
+		for subStrFirstIndex, ch = range subStrAfterCursor {
+			if ch == ' ' {
+				break
+			}
+		}
+		subStrFirstIndex++
+	}
+	return subStrAfterCursor[:subStrFirstIndex]
+}
+
 func (s *Shell) handleShortcutKey(inputCommand string, char rune, key keyboard.Key) (string, error) {
 	if s.isEscapeKeyPressed {
 		switch key {
@@ -77,49 +117,16 @@ func (s *Shell) handleShortcutKey(inputCommand string, char rune, key keyboard.K
 				break
 			}
 
-			subStrBeforeCursor := inputCommand[:len(inputCommand)+s.out.cursor]
-			previousChar := inputCommand[len(inputCommand)+s.out.cursor-1]
-
-			var subStrLastIndex int
-			if previousChar != ' ' {
-				subStrLastIndex = strings.LastIndex(subStrBeforeCursor, " ") + 1
-				s.out.cursor = -(len(subStrBeforeCursor) - subStrLastIndex) + s.out.cursor
-			} else {
-				for subStrLastIndex = len(subStrBeforeCursor) - 2; subStrLastIndex >= 0; subStrLastIndex-- {
-					if subStrBeforeCursor[subStrLastIndex] != ' ' {
-						break
-					}
-				}
-				s.out.cursor = -(len(subStrBeforeCursor) - subStrLastIndex) + s.out.cursor + 1
-			}
-
+			previousWord := getPreviousWord(inputCommand, s.out.cursor)
+			s.out.cursor = -len(previousWord) + s.out.cursor
 			break
 		case keyboard.F:
 			if s.out.cursor == 0 {
 				break
 			}
 
-			subStrAfterCursor := inputCommand[len(inputCommand)+s.out.cursor:]
-			nextChar := inputCommand[len(inputCommand)+s.out.cursor]
-
-			var subStrFirstIndex int
-			if nextChar != ' ' {
-				subStrFirstIndex = strings.Index(subStrAfterCursor, " ")
-				if subStrFirstIndex > 0 {
-					s.out.cursor += subStrFirstIndex
-				} else {
-					s.out.cursor = 0
-				}
-			} else {
-				var ch rune
-				for subStrFirstIndex, ch = range subStrAfterCursor {
-					if ch == ' ' {
-						break
-					}
-				}
-				s.out.cursor += subStrFirstIndex + 1
-			}
-
+			nextWord := getNextWord(inputCommand, s.out.cursor)
+			s.out.cursor += len(nextWord)
 			break
 		}
 		s.isEscapeKeyPressed = false
@@ -164,6 +171,17 @@ func (s *Shell) handleShortcutKey(inputCommand string, char rune, key keyboard.K
 			s.historyIndex++
 			inputCommand = ""
 		}
+		break
+	case keyboard.ControlW:
+		if -s.out.cursor >= len(inputCommand) {
+			break
+		}
+
+		previousWord := getPreviousWord(inputCommand, s.out.cursor)
+		a := inputCommand[:len(inputCommand)+s.out.cursor-len(previousWord)]
+		b := inputCommand[len(inputCommand)+s.out.cursor:]
+		inputCommand = a + b
+
 		break
 	case keyboard.ControlK:
 		inputCommandIndex := len(inputCommand) + s.out.cursor
