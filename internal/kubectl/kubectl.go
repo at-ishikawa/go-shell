@@ -36,11 +36,11 @@ func filterOptions(args []string, cliOptions []kubectloptions.CLIOption) ([]stri
 			continue
 		}
 
-		resultOptions[opt.Name] = ""
+		resultOptions[opt.LongOption] = ""
 
 		if opt.HasDefaultValue && i < len(args) {
 			nextArg := args[i]
-			resultOptions[opt.Name] = nextArg
+			resultOptions[opt.LongOption] = nextArg
 			i = i + 1
 		}
 	}
@@ -48,7 +48,6 @@ func filterOptions(args []string, cliOptions []kubectloptions.CLIOption) ([]stri
 }
 
 func Suggest(args []string) ([]string, error) {
-	// TODO: Parse arguments using a kubectl package
 	if len(args) < 2 {
 		return []string{}, nil
 	}
@@ -67,7 +66,21 @@ func Suggest(args []string) ([]string, error) {
 	}
 
 	args, _ = filterOptions(args, subCommandOptions)
-	resource := args[2]
+	var resource string
+	switch subCommand {
+	case "exec":
+	case "log", "logs":
+		resource = "pods"
+		break
+	case "port-forward":
+		resource = "pods,services"
+		break
+	default:
+		if len(args) < 3 {
+			return []string{}, nil
+		}
+		resource = args[2]
+	}
 
 	suggestOptions := []string{
 		"get",
