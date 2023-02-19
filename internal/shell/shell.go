@@ -2,8 +2,10 @@ package shell
 
 import (
 	"fmt"
+	"io/fs"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -249,6 +251,7 @@ func (s *Shell) handleShortcutKey(inputCommand string, char rune, key keyboard.K
 		s.isEscapeKeyPressed = true
 		break
 	case keyboard.Tab:
+
 		args := strings.Split(inputCommand, " ")
 		var suggested []string
 		if args[0] == kubectl.Cli {
@@ -257,6 +260,47 @@ func (s *Shell) handleShortcutKey(inputCommand string, char rune, key keyboard.K
 			if err != nil {
 				fmt.Println(err)
 				break
+			}
+		} else {
+			previousChar := inputCommand[len(inputCommand)+s.out.cursor-1]
+			if previousChar == ' ' {
+				// TODO: fix not only the new argument
+				// todo: fix max depth configuration
+				// todo: fix a skip list
+
+				maxDepth := 3
+				// var files []fs.DirEntry
+				skipList := map[string]struct{}{
+					".git":   {},
+					"vendor": {},
+				}
+				var filePaths []string
+				if err := filepath.WalkDir(".", func(path string, d fs.DirEntry, err error) error {
+					if err != nil {
+						return err
+					}
+					if _, ok := skipList[d.Name()]; ok {
+						return fs.SkipDir
+					}
+					if d.IsDir() && strings.Count(path, string(os.PathSeparator)) > maxDepth {
+						return fs.SkipDir
+					}
+					filePaths = append(filePaths, path)
+					return nil
+				}); err != nil {
+					return "", err
+				}
+
+				idx, err := fuzzyfinder.Find(filePaths,
+					func(i int) string {
+						// return files[i].Name()
+						return filePaths[i]
+					})
+				if err != nil {
+					return "", err
+				} else {
+					inputCommand += filePaths[idx]
+				}
 			}
 		}
 		if len(suggested) > 0 {
