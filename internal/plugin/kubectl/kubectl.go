@@ -71,7 +71,8 @@ func (k *KubeCtlPlugin) Command() string {
 	return Cli
 }
 
-func (k *KubeCtlPlugin) Suggest(args []string) ([]string, error) {
+func (k *KubeCtlPlugin) Suggest(arg plugin.SuggestArg) ([]string, error) {
+	args := arg.Args
 	if len(args) < 2 {
 		return []string{}, nil
 	}

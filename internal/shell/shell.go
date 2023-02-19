@@ -2,9 +2,7 @@ package shell
 
 import (
 	"fmt"
-	"io/fs"
 	"os"
-	"path/filepath"
 	"strings"
 	"unicode/utf8"
 
@@ -23,6 +21,7 @@ type Shell struct {
 	isEscapeKeyPressed bool
 	completionUi       *completion.Fzf
 	plugins            map[string]plugin.Plugin
+	defaultPlugin      plugin.Plugin
 	commandRunner      commandRunner
 }
 
@@ -50,11 +49,13 @@ func NewShell(inFile *os.File, outFile *os.File) (Shell, error) {
 	}
 
 	completionUi := completion.NewFzf()
-	kubeCtlPlugin := kubectl.NewKubeCtlPlugin(completionUi)
-	gitPlugin := git.NewGitPlugin(completionUi)
-	plugins := map[string]plugin.Plugin{
-		kubeCtlPlugin.Command(): kubeCtlPlugin,
-		gitPlugin.Command():     gitPlugin,
+	pluginList := []plugin.Plugin{
+		kubectl.NewKubeCtlPlugin(completionUi),
+		git.NewGitPlugin(completionUi),
+	}
+	plugins := make(map[string]plugin.Plugin, len(pluginList))
+	for _, p := range pluginList {
+		plugins[p.Command()] = p
 	}
 
 	return Shell{
@@ -63,6 +64,7 @@ func NewShell(inFile *os.File, outFile *os.File) (Shell, error) {
 		out:           out,
 		completionUi:  completionUi,
 		plugins:       plugins,
+		defaultPlugin: plugin.NewFilePlugin(completionUi),
 		commandRunner: newCommandRunner(out, homeDir),
 	}, nil
 }
@@ -282,51 +284,25 @@ func (s *Shell) handleShortcutKey(inputCommand string, char rune, key keyboard.K
 	case keyboard.Tab:
 
 		args := strings.Split(inputCommand, " ")
+		arg := plugin.SuggestArg{
+			Input:  inputCommand,
+			Cursor: s.out.cursor,
+			Args:   args,
+		}
 		var suggested []string
 		suggestPlugin, ok := s.plugins[args[0]]
 		if ok {
 			var err error
-			suggested, err = suggestPlugin.Suggest(args)
+			suggested, err = suggestPlugin.Suggest(arg)
 			if err != nil {
 				fmt.Println(err)
 				break
 			}
 		} else {
-			previousChar := inputCommand[len(inputCommand)+s.out.cursor-1]
-			if previousChar == ' ' {
-				// TODO: fix not only the new argument
-				// todo: fix max depth configuration
-				// todo: fix a skip list
-
-				maxDepth := 3
-				// var files []fs.DirEntry
-				skipList := map[string]struct{}{
-					".git":   {},
-					"vendor": {},
-				}
-				var filePaths []string
-				if err := filepath.WalkDir(".", func(path string, d fs.DirEntry, err error) error {
-					if err != nil {
-						return err
-					}
-					if _, ok := skipList[d.Name()]; ok {
-						return fs.SkipDir
-					}
-					if d.IsDir() && strings.Count(path, string(os.PathSeparator)) > maxDepth {
-						return fs.SkipDir
-					}
-					filePaths = append(filePaths, path)
-					return nil
-				}); err != nil {
-					return "", err
-				}
-
-				selected, err := s.completionUi.Complete(filePaths, completion.FzfOption{})
-				if err != nil {
-					return "", err
-				} else {
-					inputCommand += selected
-				}
+			var err error
+			suggested, err = s.defaultPlugin.Suggest(arg)
+			if err != nil {
+				return inputCommand, err
 			}
 		}
 		if len(suggested) > 0 {

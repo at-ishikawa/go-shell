@@ -27,7 +27,8 @@ func (g GitPlugin) Command() string {
 	return g.command
 }
 
-func (g GitPlugin) Suggest(args []string) ([]string, error) {
+func (g GitPlugin) Suggest(arg plugin.SuggestArg) ([]string, error) {
+	args := arg.Args
 	if args[1] == "add" {
 		// output, err := exec.Command(g.command, "-c", "color.status=always", "status", "-s").Output()
 		// Show only unstaged and untracked files
