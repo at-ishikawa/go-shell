@@ -51,12 +51,18 @@ func filterOptions(args []string, cliOptions []kubectloptions.CLIOption) ([]stri
 		}
 
 		resultOptions[opt.LongOption] = ""
-
-		if opt.HasDefaultValue && i < len(args) {
+		if i < len(args) {
 			nextArg := args[i]
+			if opt.HasDefaultValue {
+				// todo: fix based on the default value type
+				if nextArg == "true" || nextArg == "false" {
+					continue
+				}
+			}
 			resultOptions[opt.LongOption] = nextArg
 			i = i + 1
 		}
+
 	}
 	return result, resultOptions
 }
@@ -122,13 +128,6 @@ func (k KubeCtlPlugin) searchByFzf(kubeCtlGetResult []byte,
 	namespace string,
 	resource string,
 	isMultipleResources bool) ([]string, error) {
-	fzfOptions := []string{
-		"--inline-info",
-		"--multi",
-		"--layout reverse",
-		"--preview-window down:70%",
-		"--bind ctrl-k:kill-line,ctrl-alt-t:toggle-preview,ctrl-alt-n:preview-down,ctrl-alt-p:preview-up,ctrl-alt-v:preview-page-down",
-	}
 	var previewCommand string
 	var hasHeader bool
 	if isMultipleResources {
@@ -141,14 +140,16 @@ func (k KubeCtlPlugin) searchByFzf(kubeCtlGetResult []byte,
 	if namespace != "" {
 		previewCommand = previewCommand + " --namespace " + namespace
 	}
-	fzfOptions = append(fzfOptions,
-		fmt.Sprintf("--preview '%s'", previewCommand),
-	)
+	fzfOptions := completion.FzfOption{
+		Layout:         completion.FzfOptionLayoutReverse,
+		PreviewWindow:  "down:50%",
+		PreviewCommand: previewCommand,
+	}
 	if hasHeader {
-		fzfOptions = append(fzfOptions, "--header-lines 1")
+		fzfOptions.HeaderLines = 1
 	}
 
-	rows, err := k.completionUi.CompleteBytes(kubeCtlGetResult, fzfOptions)
+	rows, err := k.completionUi.CompleteMulti(strings.Split(string(kubeCtlGetResult), "\n"), fzfOptions)
 	if err != nil {
 		return []string{}, err
 	}
