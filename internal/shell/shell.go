@@ -6,6 +6,8 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/at-ishikawa/go-shell/internal/config"
+
 	"github.com/at-ishikawa/go-shell/internal/plugin/git"
 
 	"github.com/at-ishikawa/go-shell/internal/completion"
@@ -15,13 +17,14 @@ import (
 )
 
 type Shell struct {
-	history            history
+	history            config.History
 	in                 input
 	out                output
 	isEscapeKeyPressed bool
 	completionUi       *completion.Fzf
 	plugins            map[string]plugin.Plugin
 	defaultPlugin      plugin.Plugin
+	historyPlugin      plugin.Plugin
 	commandRunner      commandRunner
 }
 
@@ -36,15 +39,12 @@ func NewShell(inFile *os.File, outFile *os.File) (Shell, error) {
 	if err != nil {
 		return Shell{}, err
 	}
-	conf, err := newConfig(homeDir)
+	conf, err := config.NewConfig(homeDir)
 	if err != nil {
 		return Shell{}, err
 	}
-	if err := conf.makeDir(); err != nil {
-		return Shell{}, fmt.Errorf("failed to make a config directory: %w", err)
-	}
-	hist := newHistory(conf)
-	if err := hist.loadFile(); err != nil {
+	hist := config.NewHistory(conf)
+	if err := hist.LoadFile(); err != nil {
 		return Shell{}, fmt.Errorf("failed to load a history file: %w", err)
 	}
 
@@ -65,6 +65,7 @@ func NewShell(inFile *os.File, outFile *os.File) (Shell, error) {
 		completionUi:  completionUi,
 		plugins:       plugins,
 		defaultPlugin: plugin.NewFilePlugin(completionUi),
+		historyPlugin: plugin.NewHistoryPlugin(completionUi),
 		commandRunner: newCommandRunner(out, homeDir),
 	}, nil
 }
@@ -113,9 +114,9 @@ func (s Shell) Run() error {
 		if err := s.in.makeRaw(); err != nil {
 			return err
 		}
-		s.history.add(inputCommand, exitCode)
+		s.history.Add(inputCommand, exitCode)
 	}
-	if err := s.history.saveFile(); err != nil {
+	if err := s.history.SaveFile(); err != nil {
 		return fmt.Errorf("failed to write a history to a file: %w", err)
 	}
 
@@ -212,33 +213,29 @@ func (s *Shell) handleShortcutKey(inputCommand string, char rune, key keyboard.K
 		}
 		break
 	case keyboard.ControlR:
-		lines := make([]string, 0, len(s.history.list)+1)
-		lines = append(lines, fmt.Sprintf("%-50s %20s", "command", "status"))
-		for _, historyItem := range s.history.list {
-			lines = append(lines, fmt.Sprintf("%-50s %20d",
-				historyItem.Command,
-				historyItem.Status))
+		args := strings.Fields(inputCommand)
+		arg := plugin.SuggestArg{
+			Input:   inputCommand,
+			Cursor:  s.out.cursor,
+			Args:    args,
+			History: &s.history,
 		}
-		// todo: show a preview like
-		//     item := s.history.list[index]
-		//     return fmt.Sprintf("status: %d\nRunning at: %s", item.Status, item.RunAt.Format(time.RFC3339))
-		result, err := s.completionUi.Complete(lines, completion.FzfOption{
-			HeaderLines: 1,
-		})
+		selected, err := s.historyPlugin.Suggest(arg)
 		if err != nil {
 			return "", err
-		} else if result != "" {
-			selectedCommand := strings.Fields(result)
-			inputCommand = strings.Join(selectedCommand[:len(selectedCommand)-1], " ")
 		}
+		if len(selected) > 0 {
+			inputCommand = selected[0]
+		}
+		break
 	case keyboard.ControlP:
-		previousCommand := s.history.previous()
+		previousCommand := s.history.Previous()
 		if previousCommand != "" {
 			inputCommand = previousCommand
 		}
 		break
 	case keyboard.ControlN:
-		nextCommand, ok := s.history.next()
+		nextCommand, ok := s.history.Next()
 		if ok {
 			inputCommand = nextCommand
 		}
@@ -283,27 +280,23 @@ func (s *Shell) handleShortcutKey(inputCommand string, char rune, key keyboard.K
 		break
 	case keyboard.Tab:
 
-		args := strings.Split(inputCommand, " ")
+		args := strings.Fields(inputCommand)
 		arg := plugin.SuggestArg{
-			Input:  inputCommand,
-			Cursor: s.out.cursor,
-			Args:   args,
+			Input:   inputCommand,
+			Cursor:  s.out.cursor,
+			Args:    args,
+			History: &s.history,
 		}
 		var suggested []string
 		suggestPlugin, ok := s.plugins[args[0]]
-		if ok {
-			var err error
-			suggested, err = suggestPlugin.Suggest(arg)
-			if err != nil {
-				fmt.Println(err)
-				break
-			}
-		} else {
-			var err error
-			suggested, err = s.defaultPlugin.Suggest(arg)
-			if err != nil {
-				return inputCommand, err
-			}
+		if !ok {
+			suggestPlugin = s.defaultPlugin
+		}
+		var err error
+		suggested, err = suggestPlugin.Suggest(arg)
+		if err != nil {
+			fmt.Println(err)
+			break
 		}
 		if len(suggested) > 0 {
 			inputCommand = inputCommand + strings.Join(suggested, " ")

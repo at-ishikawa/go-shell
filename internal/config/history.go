@@ -1,4 +1,4 @@
-package shell
+package config
 
 import (
 	"encoding/json"
@@ -6,32 +6,36 @@ import (
 	"time"
 )
 
-type historyItem struct {
+type HistoryItem struct {
 	Command string    `json:"command"`
 	Status  int       `json:"status"`
 	RunAt   time.Time `json:"run_at"`
 }
 
-type history struct {
-	list     []historyItem
+type History struct {
+	list     []HistoryItem
 	index    int
-	config   *config
+	config   *Config
 	fileName string
 	maxSize  int
 }
 
-func newHistory(c *config) history {
-	return history{
+func NewHistory(c *Config) History {
+	return History{
 		config:   c,
 		fileName: "history.json",
 		maxSize:  1000,
 	}
 }
 
-func (h *history) loadFile() error {
+func (h *History) Get() []HistoryItem {
+	return h.list
+}
+
+func (h *History) LoadFile() error {
 	fileData, err := h.config.readFile(h.fileName)
 	if err != nil {
-		return fmt.Errorf("loadFile error: %w", err)
+		return fmt.Errorf("LoadFile error: %w", err)
 	}
 	if len(fileData) == 0 {
 		return nil
@@ -40,7 +44,7 @@ func (h *history) loadFile() error {
 	return json.Unmarshal(fileData, &h.list)
 }
 
-func (h history) saveFile() error {
+func (h History) SaveFile() error {
 	if len(h.list) > h.maxSize {
 		firstIndex := len(h.list) - h.maxSize
 		h.list = h.list[firstIndex:]
@@ -52,8 +56,8 @@ func (h history) saveFile() error {
 	return h.config.writeFile(h.fileName, marshaledJson)
 }
 
-func (h *history) add(command string, status int) {
-	h.list = append(h.list, historyItem{
+func (h *History) Add(command string, status int) {
+	h.list = append(h.list, HistoryItem{
 		Status:  status,
 		Command: command,
 		RunAt:   time.Now(),
@@ -61,7 +65,7 @@ func (h *history) add(command string, status int) {
 	h.index = len(h.list)
 }
 
-func (h *history) previous() string {
+func (h *History) Previous() string {
 	if h.index > 0 {
 		h.index--
 		return h.list[h.index].Command
@@ -69,7 +73,7 @@ func (h *history) previous() string {
 	return ""
 }
 
-func (h *history) next() (string, bool) {
+func (h *History) Next() (string, bool) {
 	if len(h.list)-1 > h.index {
 		h.index++
 		return h.list[h.index].Command, true

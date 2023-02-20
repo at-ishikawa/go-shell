@@ -3,6 +3,8 @@ package shell
 import (
 	"testing"
 
+	"github.com/at-ishikawa/go-shell/internal/config"
+
 	"github.com/at-ishikawa/go-shell/internal/keyboard"
 	"github.com/stretchr/testify/assert"
 )
@@ -290,58 +292,50 @@ func Test_HandleShortcutKey(t *testing.T) {
 	})
 
 	t.Run("History shortcuts", func(t *testing.T) {
-		newHistoryFromCommands := func(strs []string) []historyItem {
-			list := []historyItem{}
+		newHistoryFromCommands := func(strs []string, countPrevious int) config.History {
+			hist := config.History{}
 			for _, str := range strs {
-				list = append(list, historyItem{
-					Command: str,
-				})
+				hist.Add(str, 0)
 			}
-			return list
-		}
+			for i := 0; i < countPrevious; i++ {
+				hist.Previous()
+			}
 
+			return hist
+		}
 		testCases := []struct {
-			name             string
-			shell            Shell
-			command          string
-			typedChar        rune
-			keyCode          keyboard.Key
-			wantCommand      string
-			wantHistoryIndex int
-			wantCursor       int
-			wantErr          error
+			name        string
+			shell       Shell
+			command     string
+			typedChar   rune
+			keyCode     keyboard.Key
+			wantCommand string
+			wantCursor  int
+			wantErr     error
 		}{
 			{
 				name: "Show the previous command from a history from a command",
 				shell: Shell{
-					history: history{
-						list: newHistoryFromCommands([]string{
-							"command1",
-							"command2",
-						}),
-						index: 2,
-					},
+					history: newHistoryFromCommands([]string{
+						"command1",
+						"command2",
+					}, 0),
 				},
-				command:          "ab",
-				keyCode:          keyboard.ControlP,
-				wantCommand:      "command2",
-				wantHistoryIndex: 1,
+				command:     "ab",
+				keyCode:     keyboard.ControlP,
+				wantCommand: "command2",
 			},
 			{
 				name: "Show the previous command from a history from the last command",
 				shell: Shell{
-					history: history{
-						list: newHistoryFromCommands([]string{
-							"command1",
-							"command2",
-						}),
-						index: 1,
-					},
+					history: newHistoryFromCommands([]string{
+						"command1",
+						"command2",
+					}, 1),
 				},
-				command:          "command2",
-				keyCode:          keyboard.ControlP,
-				wantCommand:      "command1",
-				wantHistoryIndex: 0,
+				command:     "command2",
+				keyCode:     keyboard.ControlP,
+				wantCommand: "command1",
 			},
 			{
 				name:    "Show the previous command from a history when no history",
@@ -350,50 +344,38 @@ func Test_HandleShortcutKey(t *testing.T) {
 			{
 				name: "Show the previous command from a history when there is no history",
 				shell: Shell{
-					history: history{
-						list: newHistoryFromCommands([]string{
-							"command1",
-						}),
-						index: 1,
-					},
+					history: newHistoryFromCommands([]string{
+						"command1",
+					}, 0),
 				},
-				command:          "command1",
-				keyCode:          keyboard.ControlP,
-				wantCommand:      "command1",
-				wantHistoryIndex: 0,
+				command:     "command1",
+				keyCode:     keyboard.ControlP,
+				wantCommand: "command1",
 			},
 
 			{
 				name: "Show the next command from a history",
 				shell: Shell{
-					history: history{
-						list: newHistoryFromCommands([]string{
-							"command1",
-							"command2",
-						}),
-						index: 0,
-					},
+					history: newHistoryFromCommands([]string{
+						"command1",
+						"command2",
+					}, 2),
 				},
-				command:          "command1",
-				keyCode:          keyboard.ControlN,
-				wantCommand:      "command2",
-				wantHistoryIndex: 1,
+				command:     "command1",
+				keyCode:     keyboard.ControlN,
+				wantCommand: "command2",
 			},
 			{
 				name: "Show the next command when no more command",
 				shell: Shell{
-					history: history{
-						list: newHistoryFromCommands([]string{
-							"command1",
-							"command2",
-						}),
-						index: 1,
-					},
+					history: newHistoryFromCommands([]string{
+						"command1",
+						"command2",
+					}, 1),
 				},
-				command:          "command2",
-				keyCode:          keyboard.ControlN,
-				wantCommand:      "",
-				wantHistoryIndex: 2,
+				command:     "command2",
+				keyCode:     keyboard.ControlN,
+				wantCommand: "",
 			},
 			{
 				name:    "Show the next command when no history",
@@ -402,17 +384,13 @@ func Test_HandleShortcutKey(t *testing.T) {
 			{
 				name: "Show the next history when there is no history",
 				shell: Shell{
-					history: history{
-						list: newHistoryFromCommands([]string{
-							"command1",
-						}),
-						index: 2,
-					},
+					history: newHistoryFromCommands([]string{
+						"command1",
+					}, 0),
 				},
-				command:          "abc",
-				keyCode:          keyboard.ControlN,
-				wantCommand:      "abc",
-				wantHistoryIndex: 2,
+				command:     "abc",
+				keyCode:     keyboard.ControlN,
+				wantCommand: "abc",
 			},
 
 			// todo: Test Control R
@@ -423,7 +401,6 @@ func Test_HandleShortcutKey(t *testing.T) {
 				gotLine, gotErr := tc.shell.handleShortcutKey(tc.command, tc.typedChar, tc.keyCode)
 				assert.Equal(t, tc.wantCommand, gotLine)
 				assert.Equal(t, tc.wantCursor, tc.shell.out.cursor)
-				assert.Equal(t, tc.wantHistoryIndex, tc.shell.history.index)
 				assert.Equal(t, tc.wantErr, gotErr)
 			})
 		}

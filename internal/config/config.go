@@ -1,25 +1,29 @@
-package shell
+package config
 
 import (
 	"io/fs"
 	"os"
 )
 
-type config struct {
+type Config struct {
 	dir            string
 	dirPermission  fs.FileMode
 	filePermission fs.FileMode
 }
 
-func newConfig(homeDir string) (*config, error) {
-	return &config{
+func NewConfig(homeDir string) (*Config, error) {
+	c := &Config{
 		dir:            homeDir + "/.config/go-shell",
 		dirPermission:  0755,
 		filePermission: 0644,
-	}, nil
+	}
+	if err := c.makeDir(); err != nil {
+		return c, err
+	}
+	return c, nil
 }
 
-func (c config) readFile(filename string) ([]byte, error) {
+func (c Config) readFile(filename string) ([]byte, error) {
 	filePath := c.dir + "/" + filename
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
 		return []byte{}, nil
@@ -27,12 +31,12 @@ func (c config) readFile(filename string) ([]byte, error) {
 	return os.ReadFile(filePath)
 }
 
-func (c config) writeFile(filename string, data []byte) error {
+func (c Config) writeFile(filename string, data []byte) error {
 	filePath := c.dir + "/" + filename
 	return os.WriteFile(filePath, data, c.filePermission)
 }
 
-func (c config) makeDir() error {
+func (c Config) makeDir() error {
 	if _, err := os.Stat(c.dir); os.IsNotExist(err) {
 		return os.MkdirAll(c.dir, c.dirPermission)
 	}

@@ -26,6 +26,7 @@ type FzfOption struct {
 	PreviewWindow  string
 	PreviewCommand string
 	IsAnsiColor    bool
+	Query          string
 	isMulti        bool
 }
 
@@ -52,6 +53,9 @@ func (o FzfOption) String() string {
 	}
 	if o.IsAnsiColor {
 		result = append(result, fmt.Sprintf("--ansi"))
+	}
+	if o.Query != "" {
+		result = append(result, fmt.Sprintf("--query %s", o.Query))
 	}
 	if o.isMulti {
 		result = append(result, fmt.Sprintf("--multi"))
