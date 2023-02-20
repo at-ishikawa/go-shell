@@ -213,19 +213,11 @@ func (s *Shell) handleShortcutKey(inputCommand string, char rune, key keyboard.K
 		}
 		break
 	case keyboard.ControlR:
-		args := strings.Fields(inputCommand)
-		arg := plugin.SuggestArg{
-			Input:   inputCommand,
-			Cursor:  s.out.cursor,
-			Args:    args,
-			History: &s.history,
-		}
-		selected, err := s.historyPlugin.Suggest(arg)
+		var err error
+		inputCommand, err = s.suggest(s.historyPlugin, strings.Fields(inputCommand), inputCommand)
 		if err != nil {
-			return "", err
-		}
-		if len(selected) > 0 {
-			inputCommand = selected[0]
+			fmt.Println(err)
+			break
 		}
 		break
 	case keyboard.ControlP:
@@ -279,27 +271,16 @@ func (s *Shell) handleShortcutKey(inputCommand string, char rune, key keyboard.K
 		s.isEscapeKeyPressed = true
 		break
 	case keyboard.Tab:
-
 		args := strings.Fields(inputCommand)
-		arg := plugin.SuggestArg{
-			Input:   inputCommand,
-			Cursor:  s.out.cursor,
-			Args:    args,
-			History: &s.history,
-		}
-		var suggested []string
 		suggestPlugin, ok := s.plugins[args[0]]
 		if !ok {
 			suggestPlugin = s.defaultPlugin
 		}
 		var err error
-		suggested, err = suggestPlugin.Suggest(arg)
+		inputCommand, err = s.suggest(suggestPlugin, args, inputCommand)
 		if err != nil {
 			fmt.Println(err)
 			break
-		}
-		if len(suggested) > 0 {
-			inputCommand = inputCommand + strings.Join(suggested, " ")
 		}
 		break
 	default:
@@ -354,6 +335,33 @@ func (s Shell) getInputCommand() (string, error) {
 			continue
 		}
 		s.out.writeLine(inputCommand)
+	}
+	return inputCommand, nil
+}
+
+func (s Shell) suggest(p plugin.Plugin, args []string, inputCommand string) (string, error) {
+	var currentArgToken string
+	if len(inputCommand) > 0 {
+		previousChar := inputCommand[len(inputCommand)+s.out.cursor-1]
+		if previousChar != ' ' {
+			lastSpaceIndex := strings.LastIndex(inputCommand, " ")
+			currentArgToken = inputCommand[lastSpaceIndex:]
+		}
+	}
+
+	arg := plugin.SuggestArg{
+		Args:            args,
+		History:         &s.history,
+		CurrentArgToken: currentArgToken,
+	}
+	var suggested []string
+	var err error
+	suggested, err = p.Suggest(arg)
+	if err != nil {
+		return inputCommand, err
+	}
+	if len(suggested) > 0 {
+		inputCommand = inputCommand + strings.Join(suggested, " ")
 	}
 	return inputCommand, nil
 }

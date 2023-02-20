@@ -8,8 +8,7 @@ type Plugin interface {
 }
 
 type SuggestArg struct {
-	Input   string
-	Cursor  int
-	Args    []string
-	History *config.History
+	CurrentArgToken string
+	Args            []string
+	History         *config.History
 }
