@@ -3,6 +3,7 @@ package config
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -54,6 +55,16 @@ func (h History) SaveFile() error {
 		return err
 	}
 	return h.config.writeFile(h.fileName, marshaledJson)
+}
+
+func (h History) StartWith(inputCommand string, status int) string {
+	for i := len(h.list) - 1; i >= 0; i-- {
+		item := h.list[i]
+		if strings.HasPrefix(item.Command, inputCommand) && item.Status == status {
+			return item.Command
+		}
+	}
+	return ""
 }
 
 func (h *History) Add(command string, status int) {

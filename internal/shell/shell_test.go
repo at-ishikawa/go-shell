@@ -10,6 +10,18 @@ import (
 )
 
 func Test_HandleShortcutKey(t *testing.T) {
+	newHistoryFromCommands := func(strs []string, countPrevious int) config.History {
+		hist := config.History{}
+		for _, str := range strs {
+			hist.Add(str, 0)
+		}
+		for i := 0; i < countPrevious; i++ {
+			hist.Previous()
+		}
+
+		return hist
+	}
+
 	t.Run("type a character", func(t *testing.T) {
 		testCases := []struct {
 			name        string
@@ -83,14 +95,15 @@ func Test_HandleShortcutKey(t *testing.T) {
 	t.Run("Move cursor shortcuts", func(t *testing.T) {
 
 		testCases := []struct {
-			name        string
-			shell       Shell
-			command     string
-			typedChar   rune
-			keyCode     keyboard.Key
-			wantCommand string
-			wantCursor  int
-			wantErr     error
+			name                 string
+			shell                Shell
+			command              string
+			typedChar            rune
+			keyCode              keyboard.Key
+			wantCommand          string
+			wantCandidateCommand string
+			wantCursor           int
+			wantErr              error
 		}{
 			{
 				name:        "Move a cursor back",
@@ -172,6 +185,18 @@ func Test_HandleShortcutKey(t *testing.T) {
 				command:     "ab",
 				keyCode:     keyboard.ControlE,
 				wantCommand: "ab",
+			},
+			{
+				name: "Move a cursor on the end of a command with a candidate",
+				shell: Shell{
+					out: output{
+						cursor: -2,
+					},
+					candidateCommand: "ab cd ef",
+				},
+				command:     "ab",
+				keyCode:     keyboard.ControlE,
+				wantCommand: "ab cd ef",
 			},
 			{
 				name:    "Move a cursor on the end on the command when no command",
@@ -320,17 +345,6 @@ func Test_HandleShortcutKey(t *testing.T) {
 	})
 
 	t.Run("History shortcuts", func(t *testing.T) {
-		newHistoryFromCommands := func(strs []string, countPrevious int) config.History {
-			hist := config.History{}
-			for _, str := range strs {
-				hist.Add(str, 0)
-			}
-			for i := 0; i < countPrevious; i++ {
-				hist.Previous()
-			}
-
-			return hist
-		}
 		testCases := []struct {
 			name        string
 			shell       Shell

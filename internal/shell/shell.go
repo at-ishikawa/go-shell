@@ -26,6 +26,7 @@ type Shell struct {
 	defaultPlugin      plugin.Plugin
 	historyPlugin      plugin.Plugin
 	commandRunner      commandRunner
+	candidateCommand   string
 }
 
 func NewShell(inFile *os.File, outFile *os.File) (Shell, error) {
@@ -280,6 +281,10 @@ func (s *Shell) handleShortcutKey(inputCommand string, char rune, key keyboard.K
 		s.out.setCursor(-len(inputCommand))
 		break
 	case keyboard.ControlE:
+		if s.candidateCommand != "" {
+			inputCommand = s.candidateCommand
+			s.candidateCommand = ""
+		}
 		s.out.setCursor(0)
 		break
 	case keyboard.ControlF:
@@ -322,6 +327,10 @@ func (s *Shell) handleShortcutKey(inputCommand string, char rune, key keyboard.K
 		} else {
 			inputCommand = inputCommand + string(char)
 		}
+		s.candidateCommand = s.history.StartWith(inputCommand, 0)
+		if inputCommand == s.candidateCommand {
+			s.candidateCommand = ""
+		}
 	}
 
 	return inputCommand, nil
@@ -330,22 +339,23 @@ func (s *Shell) handleShortcutKey(inputCommand string, char rune, key keyboard.K
 func (s Shell) getInputCommand() (string, error) {
 	s.out.initNewLine()
 	s.out.setCursor(0)
+	s.candidateCommand = ""
 
 	inputCommand := ""
 	for {
 		char, key, err := s.in.Read()
 		if err != nil {
-			s.out.newLine()
+			s.out.writeLine(inputCommand)
 			return "", err
 		}
-
 		if key == keyboard.Enter {
 			s.out.newLine()
 			break
 		}
 		if key == keyboard.ControlC {
-			inputCommand = ""
+			s.out.writeLine(inputCommand)
 			s.out.newLine()
+			inputCommand = ""
 			break
 		}
 
@@ -360,6 +370,13 @@ func (s Shell) getInputCommand() (string, error) {
 			continue
 		}
 		s.out.writeLine(inputCommand)
+		if s.candidateCommand != "" {
+			remainingCommand := strings.Replace(s.candidateCommand, inputCommand, "", 1)
+			// todo: underline is too strong to show a candidate
+			s.out.file.WriteString(Dim(remainingCommand))
+
+			fmt.Fprintf(s.out.file, "\033[%dD", len(remainingCommand))
+		}
 	}
 	return inputCommand, nil
 }
