@@ -212,6 +212,18 @@ func (s *Shell) handleShortcutKey(inputCommand string, char rune, key keyboard.K
 			inputCommand = inputCommand[:len(inputCommand)-1]
 		}
 		break
+	case keyboard.ControlD:
+		if len(inputCommand) == 0 {
+			break
+		}
+		if s.out.cursor == 0 {
+			break
+		}
+
+		inputCommandIndex := len(inputCommand) + s.out.cursor
+		inputCommand = inputCommand[:inputCommandIndex] + inputCommand[inputCommandIndex+1:]
+		s.out.cursor++
+		break
 	case keyboard.ControlR:
 		var err error
 		inputCommand, err = s.suggest(s.historyPlugin, strings.Fields(inputCommand), inputCommand)

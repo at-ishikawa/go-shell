@@ -230,6 +230,34 @@ func Test_HandleShortcutKey(t *testing.T) {
 			},
 
 			{
+				name: "Delete one char forward",
+				shell: Shell{
+					out: output{
+						cursor: -1,
+					},
+				},
+				command:     "ab",
+				keyCode:     keyboard.ControlD,
+				wantCommand: "a",
+			},
+			{
+				name:    "Delete one char forward when no command",
+				keyCode: keyboard.ControlD,
+			},
+			{
+				name: "Delete one char forward when a cursor is in the beginning",
+				shell: Shell{
+					out: output{
+						cursor: -3,
+					},
+				},
+				command:     "abc",
+				keyCode:     keyboard.ControlD,
+				wantCommand: "bc",
+				wantCursor:  -2,
+			},
+
+			{
 				name: "Delete a word before a cursor",
 				shell: Shell{
 					out: output{

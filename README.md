@@ -12,8 +12,9 @@ It's still under development.
 | Esc-f | Move a cursor forward one word|
 | Ctrl-a | Move a cursor to the beginning of the line |
 | Ctrl-e | Move a cursor to the end of the line |
-| Ctrl-k | Delete a line after a cursor |
 | Ctrl-w | Delete a word before a cursor |
+| Ctrl-d | Delete a character after a cursor |
+| Ctrl-k | Delete a line after a cursor |
 | Ctrl-p | Show the previous command in a history |
 | Ctrl-n | Show the next command in a history |
 | Ctrl-r | Search a command history |
