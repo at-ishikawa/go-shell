@@ -372,9 +372,7 @@ func (s Shell) getInputCommand() (string, error) {
 		s.out.writeLine(inputCommand)
 		if s.candidateCommand != "" {
 			remainingCommand := strings.Replace(s.candidateCommand, inputCommand, "", 1)
-			// todo: underline is too strong to show a candidate
 			s.out.file.WriteString(Dim(remainingCommand))
-
 			fmt.Fprintf(s.out.file, "\033[%dD", len(remainingCommand))
 		}
 	}

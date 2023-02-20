@@ -2,6 +2,10 @@
 
 It's still under development.
 
+# Dependencies
+
+* [fzf](https://github.com/junegunn/fzf)
+
 # Shortcut keys
 
 | Key | Description |
@@ -20,9 +24,13 @@ It's still under development.
 | Ctrl-n | Show the next command in a history |
 | Ctrl-r | Search a command history |
 
-
 # Unsupported features
 
 - Pipe and redirection
 - Variables and functions
 - No support for string except double quotes
+
+# Supported commands
+
+- kubectl
+- git

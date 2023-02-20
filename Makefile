@@ -1,5 +1,8 @@
 install:
-	go install ./cmd/go-shell-cli-option-parser
+	go get ./...
 
 generate:
 	go generate ./...
+
+dev/setup:
+	go install ./cmd/go-shell-cli-option-parser
