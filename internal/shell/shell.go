@@ -194,6 +194,19 @@ func (s *Shell) handleShortcutKey(inputCommand string, char rune, key keyboard.K
 			nextWord := getNextWord(inputCommand, s.out.cursor)
 			s.out.cursor += len(nextWord)
 			break
+		case keyboard.D:
+			if len(inputCommand) == 0 {
+				break
+			}
+			if s.out.cursor == 0 {
+				break
+			}
+			nextWord := getNextWord(inputCommand, s.out.cursor)
+			inputCommandIndex := len(inputCommand) + s.out.cursor
+			inputCommand = inputCommand[:inputCommandIndex] + inputCommand[inputCommandIndex+len(nextWord):]
+			s.out.cursor += len(nextWord)
+			break
+
 		}
 		s.isEscapeKeyPressed = false
 		return inputCommand, nil

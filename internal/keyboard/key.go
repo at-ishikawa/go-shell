@@ -70,6 +70,7 @@ const (
 
 var keys = []Key{
 	B,
+	D,
 	F,
 
 	ControlA,

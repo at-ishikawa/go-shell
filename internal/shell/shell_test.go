@@ -547,6 +547,47 @@ func Test_HandleShortcutKey(t *testing.T) {
 				keyCode:     keyboard.F,
 				wantCommand: " ",
 			},
+
+			{
+				name:        "Delete a word forward if the next char is a space",
+				shell:       Shell{out: output{cursor: -2}},
+				command:     "a b",
+				keyCode:     keyboard.D,
+				wantCommand: "a",
+				wantCursor:  0,
+			},
+			{
+				name:        "Delete a word forward if the next char is a letter before the last word",
+				shell:       Shell{out: output{cursor: -1}},
+				command:     "a bc d",
+				keyCode:     keyboard.D,
+				wantCommand: "a bc ",
+			},
+			{
+				name:        "Delete a word forward if the next char is a letter",
+				shell:       Shell{out: output{cursor: -4}},
+				command:     "a bc d",
+				keyCode:     keyboard.D,
+				wantCommand: "a  d",
+				wantCursor:  -2,
+			},
+			{
+				name:    "Delete a word forward when no command",
+				keyCode: keyboard.D,
+			},
+			{
+				name:        "Delete a word forward if a cursor is on the end of the command",
+				command:     "a",
+				keyCode:     keyboard.D,
+				wantCommand: "a",
+			},
+			{
+				name:        "Delete a word forward if a command is only space",
+				shell:       Shell{out: output{cursor: -1}},
+				command:     " ",
+				keyCode:     keyboard.D,
+				wantCommand: "",
+			},
 		}
 
 		for _, tc := range testCases {
