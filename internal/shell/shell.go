@@ -3,7 +3,9 @@ package shell
 import (
 	"fmt"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 	"unicode/utf8"
 
 	"github.com/at-ishikawa/go-shell/internal/config"
@@ -341,6 +343,9 @@ func (s Shell) getInputCommand() (string, error) {
 	s.out.setCursor(0)
 	s.candidateCommand = ""
 
+	interuptSignals := make(chan os.Signal, 1)
+	signal.Notify(interuptSignals, syscall.SIGINT)
+
 	inputCommand := ""
 	for {
 		char, key, err := s.in.Read()
@@ -359,6 +364,10 @@ func (s Shell) getInputCommand() (string, error) {
 			break
 		}
 
+		go func() {
+			// Don't cancel a shell when the child command is canceled
+			<-interuptSignals
+		}()
 		inputCommand, err = s.handleShortcutKey(inputCommand, char, key)
 		if err != nil {
 			s.out.writeLine("")
