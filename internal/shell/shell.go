@@ -117,7 +117,10 @@ func (s Shell) Run() error {
 		if err := s.in.makeRaw(); err != nil {
 			return err
 		}
-		s.history.Add(inputCommand, exitCode)
+		if exitCode == 0 {
+			// In order to avoid storing commands with syntax error, do not store commands failed
+			s.history.Add(inputCommand, exitCode)
+		}
 	}
 	if err := s.history.SaveFile(); err != nil {
 		return fmt.Errorf("failed to write a history to a file: %w", err)
