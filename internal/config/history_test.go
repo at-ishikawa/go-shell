@@ -88,7 +88,7 @@ func TestHistory_SaveFile(t *testing.T) {
 		want History
 	}{
 		{
-			name: "a save file",
+			name: "file doesn't exist",
 			want: History{
 				fileName: "tmp-want.json",
 				maxSize:  10,
@@ -113,6 +113,7 @@ func TestHistory_SaveFile(t *testing.T) {
 			}
 			assert.NoError(t, got.LoadFile())
 			assert.Equal(t, tc.want.list, got.list)
+			assert.Equal(t, len(tc.want.list), got.index)
 		})
 	}
 }

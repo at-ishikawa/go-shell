@@ -43,7 +43,11 @@ func (h *History) LoadFile() error {
 		return nil
 	}
 
-	return json.Unmarshal(fileData, &h.list)
+	if err := json.Unmarshal(fileData, &h.list); err != nil {
+		return err
+	}
+	h.index = len(h.list)
+	return nil
 }
 
 func (h History) saveFile() error {
