@@ -80,6 +80,7 @@ func (s Shell) Run() error {
 		return err
 	}
 
+	var historyChannel chan struct{}
 	for {
 		kubeCtx, err := kubectl.GetContext()
 		if err != nil {
@@ -117,13 +118,16 @@ func (s Shell) Run() error {
 		if err := s.in.makeRaw(); err != nil {
 			return err
 		}
-		if exitCode == 0 {
-			// In order to avoid storing commands with syntax error, do not store commands failed
-			s.history.Add(inputCommand, exitCode)
+
+		// wait for the previous stored history process will be done
+		if historyChannel != nil {
+			<-historyChannel
 		}
+		// In order to avoid storing commands with syntax error, do not store commands failed
+		historyChannel = s.history.Sync(inputCommand, exitCode)
 	}
-	if err := s.history.SaveFile(); err != nil {
-		return fmt.Errorf("failed to write a history to a file: %w", err)
+	if historyChannel != nil {
+		<-historyChannel
 	}
 
 	return nil

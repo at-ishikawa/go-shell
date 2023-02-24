@@ -1,7 +1,10 @@
 package config
 
 import (
+	"fmt"
+	"os"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -69,6 +72,47 @@ func TestHistory_Previous(t *testing.T) {
 			got := tc.history.Previous()
 			assert.Equal(t, tc.want, got)
 			assert.Equal(t, tc.wantIndex, tc.history.index)
+		})
+	}
+}
+
+func TestHistory_SaveFile(t *testing.T) {
+	dir := os.TempDir()
+	fmt.Println(dir)
+	tmpConfig, err := NewConfig(dir)
+	assert.NoError(t, err)
+	now := time.Date(2023, 1, 1, 1, 1, 1, 1, time.UTC)
+
+	testCases := []struct {
+		name string
+		want History
+	}{
+		{
+			name: "a save file",
+			want: History{
+				fileName: "tmp-want.json",
+				maxSize:  10,
+				config:   tmpConfig,
+				list: []HistoryItem{
+					{Command: "command1", RunAt: now},
+					{Command: "command2", RunAt: now},
+				},
+				currentTime: now,
+			},
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.NoError(t, tc.want.saveFile())
+
+			got := History{
+				fileName:    tc.want.fileName,
+				maxSize:     tc.want.maxSize,
+				config:      tc.want.config,
+				currentTime: tc.want.currentTime,
+			}
+			assert.NoError(t, got.LoadFile())
+			assert.Equal(t, tc.want.list, got.list)
 		})
 	}
 }

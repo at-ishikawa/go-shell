@@ -14,11 +14,12 @@ type HistoryItem struct {
 }
 
 type History struct {
-	list     []HistoryItem
-	index    int
-	config   *Config
-	fileName string
-	maxSize  int
+	list        []HistoryItem
+	index       int
+	config      *Config
+	fileName    string
+	maxSize     int
+	currentTime time.Time
 }
 
 func NewHistory(c *Config) History {
@@ -45,7 +46,7 @@ func (h *History) LoadFile() error {
 	return json.Unmarshal(fileData, &h.list)
 }
 
-func (h History) SaveFile() error {
+func (h History) saveFile() error {
 	if len(h.list) > h.maxSize {
 		firstIndex := len(h.list) - h.maxSize
 		h.list = h.list[firstIndex:]
@@ -67,11 +68,36 @@ func (h History) StartWith(inputCommand string, status int) string {
 	return ""
 }
 
+func (h *History) Sync(command string, status int) chan struct{} {
+	ch := make(chan struct{})
+	go func() {
+		if err := h.LoadFile(); err != nil {
+			fmt.Println(err)
+			return
+		}
+		h.Add(command, status)
+		if err := h.saveFile(); err != nil {
+			fmt.Println(err)
+			return
+		}
+		ch <- struct{}{}
+	}()
+
+	return ch
+}
+
 func (h *History) Add(command string, status int) {
+	var currentTime time.Time
+	if !h.currentTime.Equal(time.Time{}) {
+		currentTime = h.currentTime
+	} else {
+		currentTime = time.Now()
+	}
+
 	h.list = append(h.list, HistoryItem{
 		Status:  status,
 		Command: command,
-		RunAt:   time.Now(),
+		RunAt:   currentTime,
 	})
 	h.index = len(h.list)
 }
