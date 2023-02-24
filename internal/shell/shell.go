@@ -6,6 +6,7 @@ import (
 	"os/signal"
 	"strings"
 	"syscall"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/at-ishikawa/go-shell/internal/config"
@@ -135,49 +136,60 @@ func (s Shell) Run() error {
 
 func getPreviousWord(str string, cursor int) string {
 	subStrBeforeCursor := str[:len(str)+cursor]
-	previousChar := str[len(str)+cursor-1]
+	previousChar := rune(str[len(str)+cursor-1])
 
 	var subStrLastIndex int
-	if previousChar == ' ' {
+	if !(unicode.IsLetter(previousChar) || unicode.IsDigit(previousChar)) {
 		for subStrLastIndex = len(subStrBeforeCursor) - 2; subStrLastIndex >= 0; subStrLastIndex-- {
-			if subStrBeforeCursor[subStrLastIndex] != ' ' {
+			ch := rune(subStrBeforeCursor[subStrLastIndex])
+			if unicode.IsLetter(ch) || unicode.IsDigit(ch) {
 				break
 			}
 		}
 		for ; subStrLastIndex >= 0; subStrLastIndex-- {
-			if subStrBeforeCursor[subStrLastIndex] == ' ' {
+			ch := rune(subStrBeforeCursor[subStrLastIndex])
+			if !(unicode.IsLetter(ch) || unicode.IsDigit(ch)) {
 				break
 			}
 		}
 		subStrLastIndex++
 	} else {
-		subStrLastIndex = strings.LastIndex(subStrBeforeCursor, " ") + 1
+		subStrLastIndex = strings.LastIndexFunc(subStrBeforeCursor, func(r rune) bool {
+			return !(unicode.IsLetter(r) || unicode.IsDigit(r))
+		}) + 1
 	}
 	return subStrBeforeCursor[subStrLastIndex:]
 }
 
 func getNextWord(str string, cursor int) string {
 	subStrAfterCursor := str[len(str)+cursor:]
-	nextChar := str[len(str)+cursor]
+	nextChar := rune(str[len(str)+cursor])
 
 	var subStrFirstIndex int
-	if nextChar != ' ' {
-		subStrFirstIndex = strings.Index(subStrAfterCursor, " ")
+	if unicode.IsLetter(nextChar) || unicode.IsDigit(nextChar) {
+		subStrFirstIndex = strings.IndexFunc(subStrAfterCursor, func(r rune) bool {
+			return !(unicode.IsLetter(r) || unicode.IsDigit(r))
+		})
 		if subStrFirstIndex < 0 {
 			subStrFirstIndex = len(subStrAfterCursor)
 		}
 	} else {
 		subStrFirstIndex = 0
 		for ; subStrFirstIndex < len(subStrAfterCursor); subStrFirstIndex++ {
-			ch := subStrAfterCursor[subStrFirstIndex]
-			if ch == ' ' {
+			ch := rune(subStrAfterCursor[subStrFirstIndex])
+			if !(unicode.IsLetter(ch) || unicode.IsDigit(ch)) {
 				break
 			}
 		}
-		subStrFirstIndex++
 		for ; subStrFirstIndex < len(subStrAfterCursor); subStrFirstIndex++ {
-			ch := subStrAfterCursor[subStrFirstIndex]
-			if ch == ' ' {
+			ch := rune(subStrAfterCursor[subStrFirstIndex])
+			if unicode.IsLetter(ch) || unicode.IsDigit(ch) {
+				break
+			}
+		}
+		for ; subStrFirstIndex < len(subStrAfterCursor); subStrFirstIndex++ {
+			ch := rune(subStrAfterCursor[subStrFirstIndex])
+			if !(unicode.IsLetter(ch) || unicode.IsDigit(ch)) {
 				break
 			}
 		}
