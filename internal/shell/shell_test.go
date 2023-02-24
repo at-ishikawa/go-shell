@@ -222,17 +222,21 @@ func Test_HandleShortcutKey(t *testing.T) {
 
 	t.Run("Delete shortcuts", func(t *testing.T) {
 		testCases := []struct {
-			name        string
-			shell       Shell
-			command     string
-			typedChar   rune
-			keyCode     keyboard.Key
-			wantCommand string
-			wantCursor  int
-			wantErr     error
+			name                 string
+			shell                Shell
+			command              string
+			typedChar            rune
+			keyCode              keyboard.Key
+			wantCommand          string
+			wantCandidateCommand string
+			wantCursor           int
+			wantErr              error
 		}{
 			{
-				name:        "Backspace",
+				name: "Backspace",
+				shell: Shell{
+					candidateCommand: "abcde",
+				},
 				command:     "ab",
 				keyCode:     keyboard.Backspace,
 				wantCommand: "a",
@@ -260,6 +264,7 @@ func Test_HandleShortcutKey(t *testing.T) {
 					out: output{
 						cursor: -1,
 					},
+					candidateCommand: "abcde",
 				},
 				command:     "ab",
 				keyCode:     keyboard.ControlD,
@@ -288,6 +293,7 @@ func Test_HandleShortcutKey(t *testing.T) {
 					out: output{
 						cursor: -2,
 					},
+					candidateCommand: "abc de",
 				},
 				command:     "abc d",
 				keyCode:     keyboard.ControlW,
@@ -317,6 +323,7 @@ func Test_HandleShortcutKey(t *testing.T) {
 					out: output{
 						cursor: -2,
 					},
+					candidateCommand: "abcde",
 				},
 				command:     "abc",
 				keyCode:     keyboard.ControlK,
@@ -338,6 +345,7 @@ func Test_HandleShortcutKey(t *testing.T) {
 			t.Run(tc.name, func(t *testing.T) {
 				gotLine, gotErr := tc.shell.handleShortcutKey(tc.command, tc.typedChar, tc.keyCode)
 				assert.Equal(t, tc.wantCommand, gotLine)
+				assert.Equal(t, tc.wantCandidateCommand, tc.shell.candidateCommand)
 				assert.Equal(t, tc.wantCursor, tc.shell.out.cursor)
 				assert.Equal(t, tc.wantErr, gotErr)
 			})
@@ -346,14 +354,15 @@ func Test_HandleShortcutKey(t *testing.T) {
 
 	t.Run("History shortcuts", func(t *testing.T) {
 		testCases := []struct {
-			name        string
-			shell       Shell
-			command     string
-			typedChar   rune
-			keyCode     keyboard.Key
-			wantCommand string
-			wantCursor  int
-			wantErr     error
+			name                 string
+			shell                Shell
+			command              string
+			typedChar            rune
+			keyCode              keyboard.Key
+			wantCommand          string
+			wantCandidateCommand string
+			wantCursor           int
+			wantErr              error
 		}{
 			{
 				name: "Show the previous command from a history from a command",
@@ -362,6 +371,7 @@ func Test_HandleShortcutKey(t *testing.T) {
 						"command1",
 						"command2",
 					}, 0),
+					candidateCommand: "abcde",
 				},
 				command:     "ab",
 				keyCode:     keyboard.ControlP,
@@ -402,6 +412,7 @@ func Test_HandleShortcutKey(t *testing.T) {
 						"command1",
 						"command2",
 					}, 2),
+					candidateCommand: "command1 abc",
 				},
 				command:     "command1",
 				keyCode:     keyboard.ControlN,
@@ -442,6 +453,7 @@ func Test_HandleShortcutKey(t *testing.T) {
 			t.Run(tc.name, func(t *testing.T) {
 				gotLine, gotErr := tc.shell.handleShortcutKey(tc.command, tc.typedChar, tc.keyCode)
 				assert.Equal(t, tc.wantCommand, gotLine)
+				assert.Equal(t, tc.wantCandidateCommand, tc.shell.candidateCommand)
 				assert.Equal(t, tc.wantCursor, tc.shell.out.cursor)
 				assert.Equal(t, tc.wantErr, gotErr)
 			})

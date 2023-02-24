@@ -185,6 +185,11 @@ func getNextWord(str string, cursor int) string {
 	return subStrAfterCursor[:subStrFirstIndex]
 }
 
+func (s *Shell) updateInputCommand(str string) string {
+	s.candidateCommand = ""
+	return str
+}
+
 func (s *Shell) handleShortcutKey(inputCommand string, char rune, key keyboard.Key) (string, error) {
 	if s.isEscapeKeyPressed {
 		switch key {
@@ -214,6 +219,7 @@ func (s *Shell) handleShortcutKey(inputCommand string, char rune, key keyboard.K
 			nextWord := getNextWord(inputCommand, s.out.cursor)
 			inputCommandIndex := len(inputCommand) + s.out.cursor
 			inputCommand = inputCommand[:inputCommandIndex] + inputCommand[inputCommandIndex+len(nextWord):]
+			inputCommand = s.updateInputCommand(inputCommand)
 			s.out.cursor += len(nextWord)
 			break
 
@@ -234,6 +240,7 @@ func (s *Shell) handleShortcutKey(inputCommand string, char rune, key keyboard.K
 		} else {
 			inputCommand = inputCommand[:len(inputCommand)-1]
 		}
+		inputCommand = s.updateInputCommand(inputCommand)
 		break
 	case keyboard.ControlD:
 		if len(inputCommand) == 0 {
@@ -245,6 +252,7 @@ func (s *Shell) handleShortcutKey(inputCommand string, char rune, key keyboard.K
 
 		inputCommandIndex := len(inputCommand) + s.out.cursor
 		inputCommand = inputCommand[:inputCommandIndex] + inputCommand[inputCommandIndex+1:]
+		inputCommand = s.updateInputCommand(inputCommand)
 		s.out.cursor++
 		break
 	case keyboard.ControlR:
@@ -254,17 +262,18 @@ func (s *Shell) handleShortcutKey(inputCommand string, char rune, key keyboard.K
 			fmt.Println(err)
 			break
 		}
+		inputCommand = s.updateInputCommand(inputCommand)
 		break
 	case keyboard.ControlP:
 		previousCommand := s.history.Previous()
 		if previousCommand != "" {
-			inputCommand = previousCommand
+			inputCommand = s.updateInputCommand(previousCommand)
 		}
 		break
 	case keyboard.ControlN:
 		nextCommand, ok := s.history.Next()
 		if ok {
-			inputCommand = nextCommand
+			inputCommand = s.updateInputCommand(nextCommand)
 		}
 		break
 
@@ -277,12 +286,14 @@ func (s *Shell) handleShortcutKey(inputCommand string, char rune, key keyboard.K
 		a := inputCommand[:len(inputCommand)+s.out.cursor-len(previousWord)]
 		b := inputCommand[len(inputCommand)+s.out.cursor:]
 		inputCommand = a + b
+		inputCommand = s.updateInputCommand(inputCommand)
 
 		break
 	case keyboard.ControlK:
 		inputCommandIndex := len(inputCommand) + s.out.cursor
 		if inputCommandIndex < len(inputCommand) {
 			inputCommand = inputCommand[:inputCommandIndex]
+			inputCommand = s.updateInputCommand(inputCommand)
 			s.out.cursor = 0
 		}
 		break
@@ -291,8 +302,7 @@ func (s *Shell) handleShortcutKey(inputCommand string, char rune, key keyboard.K
 		break
 	case keyboard.ControlE:
 		if s.candidateCommand != "" {
-			inputCommand = s.candidateCommand
-			s.candidateCommand = ""
+			inputCommand = s.updateInputCommand(s.candidateCommand)
 		}
 		s.out.setCursor(0)
 		break
@@ -321,6 +331,7 @@ func (s *Shell) handleShortcutKey(inputCommand string, char rune, key keyboard.K
 			fmt.Println(err)
 			break
 		}
+		inputCommand = s.updateInputCommand(inputCommand)
 		break
 	default:
 		if !utf8.ValidRune(char) {
