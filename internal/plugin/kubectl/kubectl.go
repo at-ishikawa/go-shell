@@ -94,8 +94,7 @@ func (k *KubeCtlPlugin) Suggest(arg plugin.SuggestArg) ([]string, error) {
 	var resource string
 	var isMultipleResources bool
 	switch subCommand {
-	case "exec":
-	case "log", "logs":
+	case "exec", "log", "logs":
 		resource = "pods"
 		break
 	case "port-forward":
