@@ -55,7 +55,7 @@ func (o FzfOption) String() string {
 		result = append(result, fmt.Sprintf("--ansi"))
 	}
 	if o.Query != "" {
-		result = append(result, fmt.Sprintf("--query %s", o.Query))
+		result = append(result, fmt.Sprintf("--query '%s'", o.Query))
 	}
 	if o.isMulti {
 		result = append(result, fmt.Sprintf("--multi"))
