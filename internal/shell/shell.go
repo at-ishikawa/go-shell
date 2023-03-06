@@ -439,7 +439,7 @@ func (s Shell) suggest(p plugin.Plugin, args []string, inputCommand string) (str
 	arg := plugin.SuggestArg{
 		Args:            args,
 		History:         &s.history,
-		CurrentArgToken: currentArgToken,
+		CurrentArgToken: strings.TrimSpace(currentArgToken),
 	}
 	var suggested []string
 	var err error

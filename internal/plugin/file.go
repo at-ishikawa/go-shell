@@ -1,7 +1,7 @@
 package plugin
 
 import (
-	"io/fs"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -11,8 +11,6 @@ import (
 
 type FilePlugin struct {
 	completionUi *completion.Fzf
-	maxDepth     int
-	skipList     map[string]struct{}
 }
 
 var _ Plugin = (*FilePlugin)(nil)
@@ -20,11 +18,6 @@ var _ Plugin = (*FilePlugin)(nil)
 func NewFilePlugin(completionUi *completion.Fzf) Plugin {
 	return &FilePlugin{
 		completionUi: completionUi,
-		maxDepth:     3,
-		skipList: map[string]struct{}{
-			".git":   {},
-			"vendor": {},
-		},
 	}
 }
 
@@ -33,30 +26,27 @@ func (f FilePlugin) Command() string {
 }
 
 func (f FilePlugin) Suggest(arg SuggestArg) ([]string, error) {
-	currentWord := arg.CurrentArgToken
-	// TODO: fix not only the new argument
-	// todo: fix max depth configuration
-	// todo: fix a skip list
+	pathSeparator := string(os.PathSeparator)
+	query := arg.CurrentArgToken
+	directories := strings.Split(arg.CurrentArgToken, pathSeparator)
+	if len(directories) > 1 {
+		// Directory except the last part
+		query = directories[len(directories)-1]
+	} else if arg.CurrentArgToken == ".." {
+		query = ""
+	}
 
-	// var files []fs.DirEntry
+	currentDirectory := filepath.Dir(arg.CurrentArgToken)
+	entries, err := os.ReadDir(currentDirectory)
+	if err != nil {
+		return []string{}, fmt.Errorf("os.ReadDir failed: %w", err)
+	}
 	var filePaths []string
-	if err := filepath.WalkDir(".", func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if _, ok := f.skipList[d.Name()]; ok {
-			return fs.SkipDir
-		}
-		if d.IsDir() && strings.Count(path, string(os.PathSeparator)) > f.maxDepth {
-			return fs.SkipDir
-		}
-		filePaths = append(filePaths, path)
-		return nil
-	}); err != nil {
-		return []string{""}, err
+	for _, e := range entries {
+		filePaths = append(filePaths, currentDirectory+pathSeparator+e.Name())
 	}
 
 	return f.completionUi.CompleteMulti(filePaths, completion.FzfOption{
-		Query: currentWord,
+		Query: query,
 	})
 }
