@@ -100,6 +100,7 @@ func (s Shell) Run() error {
 			fmt.Fprintln(os.Stderr, err)
 			continue
 		}
+		s.candidateCommand = ""
 		inputCommand = strings.TrimSpace(inputCommand)
 		if inputCommand == "" {
 			continue
@@ -380,17 +381,16 @@ func (s Shell) getInputCommand() (string, error) {
 	for {
 		char, key, err := s.in.Read()
 		if err != nil {
-			s.out.writeLine(inputCommand)
+			s.out.writeLine(inputCommand, "")
 			return "", err
 		}
 		if key == keyboard.Enter {
-			s.candidateCommand = ""
+			s.out.writeLine(inputCommand, "")
 			s.out.newLine()
 			break
 		}
 		if key == keyboard.ControlC {
-			s.candidateCommand = ""
-			s.out.writeLine(inputCommand)
+			s.out.writeLine(inputCommand, "")
 			s.out.newLine()
 			inputCommand = ""
 			break
@@ -402,20 +402,16 @@ func (s Shell) getInputCommand() (string, error) {
 		}()
 		inputCommand, err = s.handleShortcutKey(inputCommand, char, key)
 		if err != nil {
-			s.out.writeLine("")
+			s.out.writeLine("", "")
 			return "", err
 		}
 
 		if len(inputCommand) <= 0 {
-			s.out.writeLine("")
+			s.out.writeLine("", "")
 			continue
 		}
-		s.out.writeLine(inputCommand)
-		if s.candidateCommand != "" {
-			remainingCommand := strings.Replace(s.candidateCommand, inputCommand, "", 1)
-			s.out.file.WriteString(Dim(remainingCommand))
-			fmt.Fprintf(s.out.file, "\033[%dD", len(remainingCommand))
-		}
+
+		s.out.writeLine(inputCommand, s.candidateCommand)
 	}
 	return inputCommand, nil
 }

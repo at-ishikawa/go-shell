@@ -529,21 +529,26 @@ func Test_HandleShortcutKey(t *testing.T) {
 
 	t.Run("Escape mode", func(t *testing.T) {
 		testCases := []struct {
-			name        string
-			shell       Shell
-			command     string
-			typedChar   rune
-			keyCode     keyboard.Key
-			wantCommand string
-			wantCursor  int
-			wantErr     error
+			name                 string
+			shell                Shell
+			command              string
+			typedChar            rune
+			keyCode              keyboard.Key
+			wantCommand          string
+			wantCursor           int
+			wantCandidateCommand string
+			wantErr              error
 		}{
 			{
-				name:        "Move a cursor a word back if a previous char is a space",
-				command:     "a b  ",
-				keyCode:     keyboard.B,
-				wantCommand: "a b  ",
-				wantCursor:  -3,
+				name: "Move a cursor a word back if a previous char is a space",
+				shell: Shell{
+					candidateCommand: "a b  c d",
+				},
+				command:              "a b  ",
+				keyCode:              keyboard.B,
+				wantCommand:          "a b  ",
+				wantCursor:           -3,
+				wantCandidateCommand: "a b  c d",
 			},
 			{
 				name:        "Move a cursor a word back if a previous char is a letter",
@@ -692,6 +697,7 @@ func Test_HandleShortcutKey(t *testing.T) {
 				assert.False(t, tc.shell.isEscapeKeyPressed)
 				assert.Equal(t, tc.wantCommand, gotLine)
 				assert.Equal(t, tc.wantCursor, tc.shell.out.cursor)
+				assert.Equal(t, tc.wantCandidateCommand, tc.shell.candidateCommand)
 				assert.Equal(t, tc.wantErr, gotErr)
 			})
 		}

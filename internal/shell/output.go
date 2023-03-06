@@ -3,6 +3,7 @@ package shell
 import (
 	"fmt"
 	"os"
+	"strings"
 )
 
 type output struct {
@@ -27,7 +28,7 @@ func (o *output) setPrompt(prompt string) {
 
 func (o *output) initNewLine() error {
 	o.cursor = 0
-	return o.writeLine("")
+	return o.writeLine("", "")
 }
 
 func (o *output) newLine() error {
@@ -51,19 +52,19 @@ func (o *output) clearLine() error {
 	return err
 }
 
-func (o *output) writeLine(str string) error {
+func (o *output) writeLine(str string, candidate string) error {
 	o.clearLine()
+
 	o.file.WriteString(o.prompt + str)
+	if candidate != "" {
+		remainingCandidateStr := strings.Replace(candidate, str, "", 1)
+		o.file.WriteString(Dim(remainingCandidateStr))
+		fmt.Fprintf(o.file, "\033[%dD", len(remainingCandidateStr))
+	}
 
 	if o.cursor < 0 {
 		fmt.Fprintf(o.file, "\033[%dD", -o.cursor)
 	}
 
-	/*
-		log.Println("%v", map[string]interface{}{
-			"str":    str,
-			"cursor": o.cursor,
-		})
-	*/
 	return nil
 }
