@@ -82,7 +82,7 @@ func (f Fzf) Complete(lines []string, fzfOptions FzfOption) (string, error) {
 	}
 
 	str := strings.Join(lines, "\n")
-	command := fmt.Sprintf("echo '%s' | %s %s", str, f.command, fzfOptions.String())
+	command := fmt.Sprintf("echo -e '%s' | %s %s", str, f.command, fzfOptions.String())
 	execCmd := exec.Command("sh", "-c", command)
 	execCmd.Stderr = os.Stderr
 	execCmd.Stdin = os.Stdin
@@ -95,7 +95,7 @@ func (f Fzf) Complete(lines []string, fzfOptions FzfOption) (string, error) {
 				return "", nil
 			}
 		}
-		return strings.TrimSpace(string(out)), fmt.Errorf("failed to run the command %s: %w", command, err)
+		return strings.TrimSpace(string(out)), fmt.Errorf("failed to run the command: %w", err)
 	}
 	return strings.TrimSpace(string(out)), nil
 }

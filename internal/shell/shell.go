@@ -384,10 +384,12 @@ func (s Shell) getInputCommand() (string, error) {
 			return "", err
 		}
 		if key == keyboard.Enter {
+			s.candidateCommand = ""
 			s.out.newLine()
 			break
 		}
 		if key == keyboard.ControlC {
+			s.candidateCommand = ""
 			s.out.writeLine(inputCommand)
 			s.out.newLine()
 			inputCommand = ""
@@ -420,11 +422,17 @@ func (s Shell) getInputCommand() (string, error) {
 
 func (s Shell) suggest(p plugin.Plugin, args []string, inputCommand string) (string, error) {
 	var currentArgToken string
-	if len(inputCommand) > 0 {
+	var previousArgs string
+	if len(inputCommand) > 1 {
 		previousChar := inputCommand[len(inputCommand)+s.out.cursor-1]
 		if previousChar != ' ' {
 			lastSpaceIndex := strings.LastIndex(inputCommand, " ")
-			currentArgToken = inputCommand[lastSpaceIndex:]
+			if lastSpaceIndex != -1 {
+				currentArgToken = inputCommand[lastSpaceIndex:]
+				previousArgs = inputCommand[:lastSpaceIndex]
+			} else {
+				currentArgToken = inputCommand
+			}
 		}
 	}
 
@@ -440,7 +448,11 @@ func (s Shell) suggest(p plugin.Plugin, args []string, inputCommand string) (str
 		return inputCommand, err
 	}
 	if len(suggested) > 0 {
-		inputCommand = inputCommand + strings.Join(suggested, " ")
+		if previousArgs != "" {
+			inputCommand = previousArgs + " " + strings.Join(suggested, " ")
+		} else {
+			inputCommand = inputCommand + strings.Join(suggested, " ")
+		}
 	}
 	return inputCommand, nil
 }
