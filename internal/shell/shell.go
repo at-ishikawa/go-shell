@@ -68,7 +68,7 @@ func NewShell(inFile *os.File, outFile *os.File) (Shell, error) {
 		out:           out,
 		completionUi:  completionUi,
 		plugins:       plugins,
-		defaultPlugin: plugin.NewFilePlugin(completionUi),
+		defaultPlugin: plugin.NewFilePlugin(completionUi, homeDir),
 		historyPlugin: plugin.NewHistoryPlugin(completionUi),
 		commandRunner: newCommandRunner(out, homeDir),
 	}, nil

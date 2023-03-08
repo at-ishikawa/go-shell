@@ -11,13 +11,15 @@ import (
 
 type FilePlugin struct {
 	completionUi *completion.Fzf
+	homeDir      string
 }
 
 var _ Plugin = (*FilePlugin)(nil)
 
-func NewFilePlugin(completionUi *completion.Fzf) Plugin {
+func NewFilePlugin(completionUi *completion.Fzf, homeDir string) Plugin {
 	return &FilePlugin{
 		completionUi: completionUi,
+		homeDir:      homeDir,
 	}
 }
 
@@ -37,13 +39,17 @@ func (f FilePlugin) Suggest(arg SuggestArg) ([]string, error) {
 	}
 
 	currentDirectory := filepath.Dir(arg.CurrentArgToken)
-	entries, err := os.ReadDir(currentDirectory)
+	entries, err := os.ReadDir(strings.ReplaceAll(currentDirectory, "~", f.homeDir))
 	if err != nil {
 		return []string{}, fmt.Errorf("os.ReadDir failed: %w", err)
 	}
 	var filePaths []string
 	for _, e := range entries {
-		filePaths = append(filePaths, currentDirectory+pathSeparator+e.Name())
+		filePath := currentDirectory + pathSeparator + e.Name()
+		if e.IsDir() {
+			filePath = filePath + "/"
+		}
+		filePaths = append(filePaths, filePath)
 	}
 
 	return f.completionUi.CompleteMulti(filePaths, completion.FzfOption{
