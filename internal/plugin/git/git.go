@@ -34,6 +34,15 @@ func (g GitPlugin) Suggest(arg plugin.SuggestArg) ([]string, error) {
 		return g.suggestFiles()
 	case "branch":
 		return g.suggestLocalBranches()
+	case "checkout":
+		// todo: Support multiple types
+		return g.suggestLocalBranches()
+	case "push":
+		if len(args) < 3 {
+			// todo suggest remote
+			return []string{}, nil
+		}
+		return g.suggestLocalBranches()
 	}
 	return []string{}, nil
 }
