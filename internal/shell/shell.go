@@ -334,6 +334,10 @@ func (s *Shell) handleShortcutKey(inputCommand string, char rune, key keyboard.K
 		break
 	case keyboard.Tab:
 		args := strings.Fields(inputCommand)
+		if len(args) == 0 {
+			break
+		}
+
 		suggestPlugin, ok := s.plugins[args[0]]
 		if !ok {
 			suggestPlugin = s.defaultPlugin

@@ -1,5 +1,7 @@
 package plugin
 
+//go:generate mockgen -destination=../mocks/mock_plugin/mock_plugin.go -source=./plugin.go Plugin
+
 import "github.com/at-ishikawa/go-shell/internal/config"
 
 type Plugin interface {

@@ -3,6 +3,9 @@ package shell
 import (
 	"testing"
 
+	"github.com/at-ishikawa/go-shell/internal/mocks/mock_plugin"
+	"github.com/golang/mock/gomock"
+
 	"github.com/at-ishikawa/go-shell/internal/config"
 
 	"github.com/at-ishikawa/go-shell/internal/keyboard"
@@ -703,5 +706,56 @@ func Test_HandleShortcutKey(t *testing.T) {
 		}
 	})
 
-	// todo: Test Tab
+	t.Run("Suggest", func(t *testing.T) {
+		testCases := []struct {
+			name  string
+			shell Shell
+
+			inputCommand string
+			typedChar    rune
+			keyCode      keyboard.Key
+
+			mockDefaultPlugin func(mockPlugin *mock_plugin.MockPlugin)
+
+			wantCommand          string
+			wantCursor           int
+			wantCandidateCommand string
+			wantErr              error
+		}{
+			{
+				name:    "No command. No suggest",
+				keyCode: keyboard.Tab,
+				mockDefaultPlugin: func(mockPlugin *mock_plugin.MockPlugin) {
+					mockPlugin.EXPECT().Suggest(gomock.Any()).Times(0)
+				},
+			},
+			{
+				name: "default suggest",
+
+				inputCommand: "ls ",
+				keyCode:      keyboard.Tab,
+
+				mockDefaultPlugin: func(mockPlugin *mock_plugin.MockPlugin) {
+					mockPlugin.EXPECT().Suggest(gomock.Any()).Return([]string{"/tmp"}, nil).Times(1)
+				},
+
+				wantCommand: "ls /tmp",
+			},
+		}
+
+		for _, tc := range testCases {
+			t.Run(tc.name, func(t *testing.T) {
+				mockController := gomock.NewController(t)
+				mockPlugin := mock_plugin.NewMockPlugin(mockController)
+				tc.mockDefaultPlugin(mockPlugin)
+				tc.shell.defaultPlugin = mockPlugin
+
+				gotLine, gotErr := tc.shell.handleShortcutKey(tc.inputCommand, tc.typedChar, tc.keyCode)
+				assert.Equal(t, tc.wantCommand, gotLine)
+				assert.Equal(t, tc.wantCursor, tc.shell.out.cursor)
+				assert.Equal(t, tc.wantCandidateCommand, tc.shell.candidateCommand)
+				assert.Equal(t, tc.wantErr, gotErr)
+			})
+		}
+	})
 }
