@@ -11,12 +11,12 @@ import (
 
 type GitPlugin struct {
 	command      string
-	completionUi *completion.Fzf
+	completionUi completion.Completion
 }
 
 var _ plugin.Plugin = (*GitPlugin)(nil)
 
-func NewGitPlugin(completionUi *completion.Fzf) plugin.Plugin {
+func NewGitPlugin(completionUi completion.Completion) plugin.Plugin {
 	return &GitPlugin{
 		command:      "git",
 		completionUi: completionUi,
@@ -30,7 +30,8 @@ func (g GitPlugin) Command() string {
 func (g GitPlugin) Suggest(arg plugin.SuggestArg) ([]string, error) {
 	args := arg.Args
 	if len(args) < 2 {
-		return arg.Suggest(g.completionUi)
+		return []string{}, nil
+		// return arg.Suggest(g.completionUi)
 	}
 
 	switch args[1] {
@@ -44,11 +45,13 @@ func (g GitPlugin) Suggest(arg plugin.SuggestArg) ([]string, error) {
 	case "push":
 		if len(args) < 3 {
 			// todo suggest remote
-			return arg.Suggest(g.completionUi)
+			return []string{}, nil
+			// return arg.Suggest(g.completionUi)
 		}
 		return g.suggestLocalBranches()
 	}
-	return arg.Suggest(g.completionUi)
+	return []string{}, nil
+	// return arg.Suggest(g.completionUi)
 }
 
 func (g GitPlugin) suggestFiles() ([]string, error) {
@@ -59,7 +62,7 @@ func (g GitPlugin) suggestFiles() ([]string, error) {
 		return []string{}, fmt.Errorf("failed to run a git status: %w", err)
 	}
 
-	lines, err := g.completionUi.CompleteMulti(strings.Split(string(output), "\n"), completion.FzfOption{
+	lines, err := g.completionUi.CompleteMulti(strings.Split(string(output), "\n"), completion.CompleteOptions{
 		IsAnsiColor:    true,
 		PreviewCommand: "git diff --color HEAD {1}",
 	})
@@ -79,7 +82,7 @@ func (g GitPlugin) suggestLocalBranches() ([]string, error) {
 		return []string{}, fmt.Errorf("failed to run a git for-each-ref: %w", err)
 	}
 	formattedBranches := formatLines(output, 0, 50, 100)
-	lines, err := g.completionUi.CompleteMulti(formattedBranches, completion.FzfOption{
+	lines, err := g.completionUi.CompleteMulti(formattedBranches, completion.CompleteOptions{
 		IsAnsiColor:    true,
 		PreviewCommand: "git log {1}",
 	})

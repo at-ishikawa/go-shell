@@ -5,7 +5,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/at-ishikawa/go-shell/internal/completion"
 	"github.com/at-ishikawa/go-shell/internal/config"
 	"go.uber.org/zap"
 )
@@ -56,9 +55,10 @@ func NewShell(inFile *os.File, outFile *os.File, errorFile *os.File, options Opt
 	if err := commandHistory.LoadFile(); err != nil {
 		return Shell{}, fmt.Errorf("failed to load a history file: %w", err)
 	}
-
-	completionUi := completion.NewFzf()
-	suggester := newCommandSuggester(completionUi, &commandHistory, homeDir)
+	suggester, err := newCommandSuggester(&commandHistory, homeDir)
+	if err != nil {
+		return Shell{}, err
+	}
 
 	terminal, err := newTerminal(
 		inFile,
@@ -81,11 +81,6 @@ func NewShell(inFile *os.File, outFile *os.File, errorFile *os.File, options Opt
 
 // https://hackernoon.com/today-i-learned-making-a-simple-interactive-shell-application-in-golang-aa83adcb266a
 func (s Shell) Run() error {
-	defer func() {
-		if r := recover(); r != nil {
-			fmt.Println("Panic happened: ", r)
-		}
-	}()
 	defer func() {
 		if err := s.logger.Sync(); err != nil {
 			s.logger.Error("Failed to zap.Logger.sync", zap.Error(err))
