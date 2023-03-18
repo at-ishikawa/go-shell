@@ -2,44 +2,31 @@ package shell
 
 import (
 	"fmt"
-	"io"
 	"os"
-	"os/signal"
 	"strings"
-	"syscall"
 	"time"
 	"unicode"
-	"unicode/utf8"
 
 	"github.com/at-ishikawa/go-shell/internal/config"
 	"go.uber.org/zap"
 
-	"github.com/at-ishikawa/go-shell/internal/plugin/git"
-
 	"github.com/at-ishikawa/go-shell/internal/completion"
-	"github.com/at-ishikawa/go-shell/internal/keyboard"
-	"github.com/at-ishikawa/go-shell/internal/plugin"
 	"github.com/at-ishikawa/go-shell/internal/plugin/kubectl"
 )
 
 type Shell struct {
-	logger           *zap.Logger
-	history          config.History
-	in               input
-	out              output
-	completionUi     *completion.Fzf
-	plugins          map[string]plugin.Plugin
-	defaultPlugin    plugin.Plugin
-	historyPlugin    plugin.Plugin
-	commandRunner    commandRunner
-	candidateCommand string
+	logger         *zap.Logger
+	history        config.History
+	terminal       terminal
+	shellSuggester suggester
+	commandRunner  commandRunner
 }
 
 type Options struct {
 	IsDebug bool
 }
 
-func NewShell(inFile *os.File, outFile *os.File, options Options) (Shell, error) {
+func NewShell(inFile *os.File, outFile *os.File, errorFile *os.File, options Options) (Shell, error) {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		return Shell{}, err
@@ -69,37 +56,32 @@ func NewShell(inFile *os.File, outFile *os.File, options Options) (Shell, error)
 		return Shell{}, err
 	}
 
-	in, err := initInput(inFile)
-	if err != nil {
-		return Shell{}, err
-	}
-	out := initOutput(outFile)
-
 	commandHistory := config.NewHistory(conf)
 	if err := commandHistory.LoadFile(); err != nil {
 		return Shell{}, fmt.Errorf("failed to load a history file: %w", err)
 	}
+	terminal, err := newTerminal(
+		inFile,
+		outFile,
+		errorFile,
+		&commandHistory,
+		logger,
+	)
+	if err != nil {
+		return Shell{}, fmt.Errorf("failed to initialize a terminal: %w", err)
+	}
 
 	completionUi := completion.NewFzf()
-	pluginList := []plugin.Plugin{
-		kubectl.NewKubeCtlPlugin(completionUi),
-		git.NewGitPlugin(completionUi),
-	}
-	plugins := make(map[string]plugin.Plugin, len(pluginList))
-	for _, p := range pluginList {
-		plugins[p.Command()] = p
-	}
+	suggester := newSuggester(&terminal, completionUi, &commandHistory, homeDir)
+	// todo remove a circular dependency
+	terminal.suggester = suggester
 
 	return Shell{
-		logger:        logger,
-		history:       commandHistory,
-		in:            in,
-		out:           out,
-		completionUi:  completionUi,
-		plugins:       plugins,
-		defaultPlugin: plugin.NewFilePlugin(completionUi, homeDir),
-		historyPlugin: plugin.NewHistoryPlugin(completionUi),
-		commandRunner: newCommandRunner(out, homeDir),
+		logger:         logger,
+		history:        commandHistory,
+		terminal:       terminal,
+		shellSuggester: suggester,
+		commandRunner:  newCommandRunner(homeDir),
 	}, nil
 }
 
@@ -111,11 +93,11 @@ func (s Shell) Run() error {
 		}
 	}()
 	defer func() {
-		if err := s.in.finalize(); err != nil {
+		if err := s.terminal.finalize(); err != nil {
 			s.logger.Error("Failed to finalize a terminal input", zap.Error(err))
 		}
 	}()
-	if err := s.in.makeRaw(); err != nil {
+	if err := s.terminal.makeRaw(); err != nil {
 		return err
 	}
 
@@ -129,16 +111,15 @@ func (s Shell) Run() error {
 			if err != nil {
 				fmt.Println(err)
 			} else {
-				s.out.setPrompt(fmt.Sprintf("[%s|%s] $ ", kubeCtx, kubeNamespace))
+				s.terminal.setPrompt(fmt.Sprintf("[%s|%s] $ ", kubeCtx, kubeNamespace))
 			}
 		}
 
-		inputCommand, err := s.getInputCommand()
+		inputCommand, err := s.terminal.getInputCommand()
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			continue
 		}
-		s.candidateCommand = ""
 		inputCommand = strings.TrimSpace(inputCommand)
 		if inputCommand == "" {
 			continue
@@ -148,14 +129,14 @@ func (s Shell) Run() error {
 		}
 
 		// For some reason, term.Restore for an input is required before executing a command
-		if err := s.in.restore(); err != nil {
+		if err := s.terminal.restore(); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		}
-		exitCode, err := s.commandRunner.run(inputCommand)
+		exitCode, err := s.commandRunner.run(inputCommand, s.terminal.commandFactory())
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		}
-		if err := s.in.makeRaw(); err != nil {
+		if err := s.terminal.makeRaw(); err != nil {
 			return err
 		}
 
@@ -234,296 +215,4 @@ func getNextWord(str string, cursor int) string {
 		}
 	}
 	return subStrAfterCursor[:subStrFirstIndex]
-}
-
-func (s *Shell) updateInputCommand(str string) string {
-	s.candidateCommand = ""
-	return str
-}
-
-func (s *Shell) moveCursorForward() {
-	if s.out.cursor < 0 {
-		s.out.moveCursor(1)
-	}
-}
-
-func (s *Shell) moveCursorBackward(inputCommand string) {
-	if -s.out.cursor < len(inputCommand) {
-		s.out.moveCursor(-1)
-	}
-}
-
-func (s *Shell) showPreviousCommandFromHistory(inputCommand string) string {
-	previousCommand := s.history.Previous()
-	if previousCommand != "" {
-		inputCommand = s.updateInputCommand(previousCommand)
-	}
-	return inputCommand
-}
-
-func (s *Shell) showNextCommandFromHistory(inputCommand string) string {
-	nextCommand, ok := s.history.Next()
-	if ok {
-		inputCommand = s.updateInputCommand(nextCommand)
-	}
-	return inputCommand
-}
-
-func (s *Shell) handleShortcutKey(inputCommand string, keyEvent keyboard.KeyEvent) (string, error) {
-	if keyEvent.IsEscapePressed {
-		switch keyEvent.KeyCode {
-		case keyboard.B:
-			if -s.out.cursor >= len(inputCommand) {
-				break
-			}
-
-			previousWord := getPreviousWord(inputCommand, s.out.cursor)
-			s.out.cursor = -len(previousWord) + s.out.cursor
-			break
-		case keyboard.F:
-			if s.out.cursor == 0 {
-				break
-			}
-
-			nextWord := getNextWord(inputCommand, s.out.cursor)
-			s.out.cursor += len(nextWord)
-			break
-		case keyboard.D:
-			if len(inputCommand) == 0 {
-				break
-			}
-			if s.out.cursor == 0 {
-				break
-			}
-			nextWord := getNextWord(inputCommand, s.out.cursor)
-			inputCommandIndex := len(inputCommand) + s.out.cursor
-			inputCommand = inputCommand[:inputCommandIndex] + inputCommand[inputCommandIndex+len(nextWord):]
-			inputCommand = s.updateInputCommand(inputCommand)
-			s.out.cursor += len(nextWord)
-			break
-		}
-		return inputCommand, nil
-	}
-	if keyEvent.IsControlPressed {
-		switch keyEvent.KeyCode {
-		case keyboard.D:
-			if len(inputCommand) == 0 {
-				break
-			}
-			if s.out.cursor == 0 {
-				break
-			}
-
-			inputCommandIndex := len(inputCommand) + s.out.cursor
-			inputCommand = inputCommand[:inputCommandIndex] + inputCommand[inputCommandIndex+1:]
-			inputCommand = s.updateInputCommand(inputCommand)
-			s.out.cursor++
-			break
-		case keyboard.R:
-			var err error
-			inputCommand, err = s.suggest(s.historyPlugin, strings.Fields(inputCommand), inputCommand)
-			if err != nil {
-				fmt.Println(err)
-				break
-			}
-			inputCommand = s.updateInputCommand(inputCommand)
-			break
-		case keyboard.P:
-			inputCommand = s.showPreviousCommandFromHistory(inputCommand)
-			break
-		case keyboard.N:
-			inputCommand = s.showNextCommandFromHistory(inputCommand)
-			break
-		case keyboard.W:
-			if -s.out.cursor >= len(inputCommand) {
-				break
-			}
-
-			previousWord := getPreviousWord(inputCommand, s.out.cursor)
-			a := inputCommand[:len(inputCommand)+s.out.cursor-len(previousWord)]
-			b := inputCommand[len(inputCommand)+s.out.cursor:]
-			inputCommand = a + b
-			inputCommand = s.updateInputCommand(inputCommand)
-
-			break
-		case keyboard.K:
-			inputCommandIndex := len(inputCommand) + s.out.cursor
-			if inputCommandIndex < len(inputCommand) {
-				inputCommand = inputCommand[:inputCommandIndex]
-				inputCommand = s.updateInputCommand(inputCommand)
-				s.out.cursor = 0
-			}
-			break
-		case keyboard.A:
-			s.out.setCursor(-len(inputCommand))
-			break
-		case keyboard.E:
-			if s.candidateCommand != "" {
-				inputCommand = s.updateInputCommand(s.candidateCommand)
-			}
-			s.out.setCursor(0)
-			break
-		case keyboard.F:
-			s.moveCursorForward()
-			break
-		case keyboard.B:
-			s.moveCursorBackward(inputCommand)
-			break
-		}
-		return inputCommand, nil
-	}
-
-	switch keyEvent.KeyCode {
-	case keyboard.Backspace:
-		if len(inputCommand) == 0 {
-			break
-		}
-
-		if s.out.cursor < 0 {
-			inputCommandIndex := len(inputCommand) + s.out.cursor
-			inputCommand = inputCommand[:inputCommandIndex-1] + inputCommand[inputCommandIndex:]
-		} else {
-			inputCommand = inputCommand[:len(inputCommand)-1]
-		}
-		inputCommand = s.updateInputCommand(inputCommand)
-		break
-	case keyboard.ArrowUp:
-		inputCommand = s.showPreviousCommandFromHistory(inputCommand)
-		break
-	case keyboard.ArrowDown:
-		inputCommand = s.showNextCommandFromHistory(inputCommand)
-		break
-	case keyboard.ArrowRight:
-		s.moveCursorForward()
-		break
-	case keyboard.ArrowLeft:
-		s.moveCursorBackward(inputCommand)
-		break
-	case keyboard.Tab:
-		args := strings.Fields(inputCommand)
-		if len(args) == 0 {
-			break
-		}
-
-		suggestPlugin, ok := s.plugins[args[0]]
-		if !ok {
-			suggestPlugin = s.defaultPlugin
-		}
-		var err error
-		inputCommand, err = s.suggest(suggestPlugin, args, inputCommand)
-		if err != nil {
-			fmt.Println(err)
-			break
-		}
-		inputCommand = s.updateInputCommand(inputCommand)
-		break
-	default:
-		if !utf8.ValidRune(keyEvent.Rune) {
-			break
-		}
-
-		if s.out.cursor < 0 {
-			inputCommandIndex := len(inputCommand) + s.out.cursor
-			inputCommand = inputCommand[:inputCommandIndex] + string(keyEvent.Rune) + inputCommand[inputCommandIndex:]
-		} else {
-			inputCommand = inputCommand + string(keyEvent.Rune)
-		}
-		s.candidateCommand = s.history.StartWith(inputCommand, 0)
-		if inputCommand == s.candidateCommand {
-			s.candidateCommand = ""
-		}
-	}
-
-	return inputCommand, nil
-}
-
-func (s Shell) getInputCommand() (string, error) {
-	s.out.initNewLine()
-	s.out.setCursor(0)
-	s.candidateCommand = ""
-
-	interuptSignals := make(chan os.Signal, 1)
-	defer close(interuptSignals)
-	signal.Notify(interuptSignals, syscall.SIGINT)
-
-	inputCommand := ""
-	for {
-		keyEvent, err := s.in.Read()
-		s.logger.Debug("type", zap.ByteString("bytes", keyEvent.Bytes))
-
-		if err == io.EOF {
-			s.out.writeLine(inputCommand, "")
-			s.out.newLine()
-			break
-		} else if err != nil {
-			s.out.writeLine(inputCommand, "")
-			return "", err
-		}
-		if keyEvent.KeyCode == keyboard.Enter {
-			s.out.writeLine(inputCommand, "")
-			s.out.newLine()
-			break
-		}
-		if keyEvent.IsControlPressed && keyEvent.KeyCode == keyboard.C {
-			s.out.writeLine(inputCommand, "")
-			s.out.newLine()
-			inputCommand = ""
-			break
-		}
-
-		go func() {
-			// Don't cancel a shell when the child command is canceled
-			<-interuptSignals
-		}()
-		inputCommand, err = s.handleShortcutKey(inputCommand, keyEvent)
-		if err != nil {
-			s.out.writeLine("", "")
-			return "", err
-		}
-
-		if len(inputCommand) <= 0 {
-			s.out.writeLine("", "")
-			continue
-		}
-
-		s.out.writeLine(inputCommand, s.candidateCommand)
-	}
-	return inputCommand, nil
-}
-
-func (s Shell) suggest(p plugin.Plugin, args []string, inputCommand string) (string, error) {
-	var currentArgToken string
-	var previousArgs string
-	if len(inputCommand) > 1 {
-		previousChar := inputCommand[len(inputCommand)+s.out.cursor-1]
-		if previousChar != ' ' {
-			lastSpaceIndex := strings.LastIndex(inputCommand, " ")
-			if lastSpaceIndex != -1 {
-				currentArgToken = inputCommand[lastSpaceIndex:]
-				previousArgs = inputCommand[:lastSpaceIndex]
-			} else {
-				currentArgToken = inputCommand
-			}
-		}
-	}
-
-	arg := plugin.SuggestArg{
-		Args:            args,
-		History:         &s.history,
-		CurrentArgToken: strings.TrimSpace(currentArgToken),
-	}
-	var suggested []string
-	var err error
-	suggested, err = p.Suggest(arg)
-	if err != nil {
-		return inputCommand, err
-	}
-	if len(suggested) > 0 {
-		if previousArgs != "" {
-			inputCommand = previousArgs + " " + strings.Join(suggested, " ")
-		} else {
-			inputCommand = inputCommand + strings.Join(suggested, " ")
-		}
-	}
-	return inputCommand, nil
 }

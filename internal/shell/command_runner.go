@@ -7,13 +7,11 @@ import (
 )
 
 type commandRunner struct {
-	out     output
 	homeDir string
 }
 
-func newCommandRunner(out output, homeDir string) commandRunner {
+func newCommandRunner(homeDir string) commandRunner {
 	return commandRunner{
-		out:     out,
 		homeDir: homeDir,
 	}
 }
@@ -73,7 +71,7 @@ func (cr commandRunner) compileInput(inputCommand string) (string, []string) {
 	return command, args
 }
 
-func (cr commandRunner) run(inputCommand string) (int, error) {
+func (cr commandRunner) run(inputCommand string, commandFactory func(name string, args ...string) *exec.Cmd) (int, error) {
 	command, args := cr.compileInput(inputCommand)
 	if command == "" {
 		return 0, nil
@@ -87,9 +85,7 @@ func (cr commandRunner) run(inputCommand string) (int, error) {
 		return 0, nil
 	}
 
-	cmd := exec.Command(command, args...)
-	cmd.Stderr = os.Stderr
-	cmd.Stdout = cr.out.file
+	cmd := commandFactory(command, args...)
 	if err := cmd.Run(); err != nil {
 		// var exitError *exec.ExitError
 		// if errors.As(err, &exitError) {

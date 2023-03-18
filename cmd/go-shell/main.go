@@ -13,7 +13,12 @@ func main() {
 
 	rootCommand := &cobra.Command{
 		RunE: func(cmd *cobra.Command, args []string) error {
-			s, err := shell.NewShell(os.Stdin, os.Stdout, commandLineOptions)
+			s, err := shell.NewShell(
+				os.Stdin,
+				os.Stdout,
+				os.Stderr,
+				commandLineOptions,
+			)
 			if err != nil {
 				return err
 			}
