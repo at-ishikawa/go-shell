@@ -16,6 +16,7 @@ func TestGetEvent(t *testing.T) {
 			name:  "alphabet upper case",
 			input: []byte{65},
 			want: KeyEvent{
+				Key:  'A',
 				Rune: 'A',
 			},
 		},
@@ -23,6 +24,7 @@ func TestGetEvent(t *testing.T) {
 			name:  "alphabet lower case",
 			input: []byte{A},
 			want: KeyEvent{
+				Key:  'a',
 				Rune: 'a',
 			},
 		},
@@ -66,7 +68,7 @@ func TestGetEvent(t *testing.T) {
 		},
 		{
 			name:  "Arrow key",
-			input: []byte{Escape, LeftSquareBracket, ArrowUp},
+			input: []byte{Escape, LeftSquareBracket, 0x41},
 			want: KeyEvent{
 				Key: ArrowUp,
 			},

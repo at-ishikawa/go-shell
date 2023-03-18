@@ -1,6 +1,6 @@
 package keyboard
 
-type Key byte
+type Key int
 
 type KeyEvent struct {
 	Key  Key
@@ -43,11 +43,11 @@ const (
 
 // https://pkg.go.dev/gobot.io/x/gobot/platforms/keyboard#pkg-constants
 const (
-	// ArrowUp is the same ANSI code as upper A
-	ArrowUp = iota + 65
-	ArrowDown
-	ArrowRight
-	ArrowLeft
+	// Escape + Left Square Brancket + Capital A
+	ArrowUp    = 0x1b5b41
+	ArrowDown  = 0x1b5b42
+	ArrowRight = 0x1b5b43
+	ArrowLeft  = 0x1b5b44
 )
 
 // https://github.com/c-bata/go-prompt/blob/82a912274504477990ecf7c852eebb7c85291772/input.go#L34
@@ -64,43 +64,44 @@ const (
 	Backspace = 0x7f
 )
 
-var specialKeys = []byte{
+var specialKeys = []Key{
 	Enter,
 	Tab,
 	Backspace,
+
+	ArrowUp,
+	ArrowDown,
+	ArrowRight,
+	ArrowLeft,
 }
 
 func GetKeyEvent(bytes []byte) KeyEvent {
 	keyEvent := KeyEvent{}
 	if len(bytes) == 0 {
-		return KeyEvent{}
+		return keyEvent
 	}
 
-	if bytes[0] == Escape {
-		if bytes[1] == LeftSquareBracket {
-			// This should be arrow keys
-			keyEvent.Key = Key(bytes[2])
-			return keyEvent
-		}
-
-		keyEvent.IsEscapePressed = true
-		bytes = bytes[1:]
+	keyBytes := Key(0)
+	for _, b := range bytes {
+		keyBytes = (keyBytes << 8) | Key(b)
 	}
 
 	for _, specialKey := range specialKeys {
-		if bytes[0] == specialKey {
-			keyEvent.Key = Key(specialKey)
+		if keyBytes == specialKey {
+			keyEvent.Key = specialKey
 			return keyEvent
 		}
 	}
 
+	if bytes[0] == Escape {
+		keyEvent.IsEscapePressed = true
+		bytes = bytes[1:]
+	}
 	if bytes[0] >= controlA && bytes[0] <= controlZ {
 		keyEvent.Key = Key(bytes[0] - controlA + A)
 		keyEvent.IsControlPressed = true
 	} else {
-		if keyEvent.IsEscapePressed {
-			keyEvent.Key = Key(bytes[0])
-		}
+		keyEvent.Key = Key(bytes[0])
 		keyEvent.Rune = rune(bytes[0])
 	}
 
