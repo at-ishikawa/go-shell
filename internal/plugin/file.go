@@ -6,20 +6,24 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/at-ishikawa/go-shell/internal/config"
+
 	"github.com/at-ishikawa/go-shell/internal/completion"
 )
 
 type FilePlugin struct {
-	completionUi *completion.Fzf
-	homeDir      string
+	completionUi        *completion.Fzf
+	historyCommandStats HistoryCommandStats
+	homeDir             string
 }
 
 var _ Plugin = (*FilePlugin)(nil)
 
-func NewFilePlugin(completionUi *completion.Fzf, homeDir string) Plugin {
+func NewFilePlugin(completionUi *completion.Fzf, commandHistory *config.History, homeDir string) Plugin {
 	return &FilePlugin{
-		completionUi: completionUi,
-		homeDir:      homeDir,
+		completionUi:        completionUi,
+		historyCommandStats: getHistoryCommandStats(commandHistory.Get()),
+		homeDir:             homeDir,
 	}
 }
 
@@ -28,6 +32,8 @@ func (f FilePlugin) Command() string {
 }
 
 func (f FilePlugin) Suggest(arg SuggestArg) ([]string, error) {
+	suggestedValuesFromHistory := f.historyCommandStats.getSuggestedValues(arg.Args, arg.CurrentArgToken)
+
 	pathSeparator := string(os.PathSeparator)
 	query := arg.CurrentArgToken
 	directories := strings.Split(arg.CurrentArgToken, pathSeparator)
@@ -52,7 +58,15 @@ func (f FilePlugin) Suggest(arg SuggestArg) ([]string, error) {
 		filePaths = append(filePaths, filePath)
 	}
 
-	return f.completionUi.CompleteMulti(filePaths, completion.FzfOption{
+	suggestValues := make([]string, 0, len(suggestedValuesFromHistory)+len(filePaths))
+	for _, suggestValue := range suggestedValuesFromHistory {
+		suggestValues = append(suggestValues, suggestValue)
+	}
+	for _, filePath := range filePaths {
+		suggestValues = append(suggestValues, filePath)
+	}
+
+	return f.completionUi.CompleteMulti(suggestValues, completion.FzfOption{
 		Query: query,
 	})
 }

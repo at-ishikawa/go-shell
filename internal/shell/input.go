@@ -44,6 +44,5 @@ func (i *input) finalize() error {
 func (i *input) Read() (keyboard.KeyEvent, error) {
 	buffer := make([]byte, 8)
 	bufferSize, err := i.reader.Read(buffer)
-	// fmt.Printf("%v\n", buffer)
 	return keyboard.GetKeyEvent(buffer[:bufferSize]), err
 }

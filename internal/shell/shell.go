@@ -47,8 +47,8 @@ func NewShell(inFile *os.File, outFile *os.File) (Shell, error) {
 	if err != nil {
 		return Shell{}, err
 	}
-	hist := config.NewHistory(conf)
-	if err := hist.LoadFile(); err != nil {
+	commandHistory := config.NewHistory(conf)
+	if err := commandHistory.LoadFile(); err != nil {
 		return Shell{}, fmt.Errorf("failed to load a history file: %w", err)
 	}
 
@@ -63,12 +63,12 @@ func NewShell(inFile *os.File, outFile *os.File) (Shell, error) {
 	}
 
 	return Shell{
-		history:       hist,
+		history:       commandHistory,
 		in:            in,
 		out:           out,
 		completionUi:  completionUi,
 		plugins:       plugins,
-		defaultPlugin: plugin.NewFilePlugin(completionUi, homeDir),
+		defaultPlugin: plugin.NewFilePlugin(completionUi, &commandHistory, homeDir),
 		historyPlugin: plugin.NewHistoryPlugin(completionUi),
 		commandRunner: newCommandRunner(out, homeDir),
 	}, nil
@@ -411,7 +411,6 @@ func (s Shell) getInputCommand() (string, error) {
 	inputCommand := ""
 	for {
 		keyEvent, err := s.in.Read()
-		fmt.Printf("%v\n", keyEvent)
 		if err == io.EOF {
 			s.out.writeLine(inputCommand, "")
 			s.out.newLine()
