@@ -2,6 +2,7 @@ package shell
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"os/signal"
 	"strings"
@@ -404,12 +405,18 @@ func (s Shell) getInputCommand() (string, error) {
 	s.candidateCommand = ""
 
 	interuptSignals := make(chan os.Signal, 1)
+	defer close(interuptSignals)
 	signal.Notify(interuptSignals, syscall.SIGINT)
 
 	inputCommand := ""
 	for {
 		keyEvent, err := s.in.Read()
-		if err != nil {
+		fmt.Printf("%v\n", keyEvent)
+		if err == io.EOF {
+			s.out.writeLine(inputCommand, "")
+			s.out.newLine()
+			break
+		} else if err != nil {
 			s.out.writeLine(inputCommand, "")
 			return "", err
 		}

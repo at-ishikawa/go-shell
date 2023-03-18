@@ -1,0 +1,42 @@
+name: Upload Go test results
+
+on: [push]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go-version: [ '1.19' ]
+
+    steps:
+      - uses: actions/checkout@v3
+
+      # Solve errors on /nektos/act
+      - name: Install packages
+        run: |
+          # https://github.com/actions/setup-go/issues/220#issuecomment-1117998068
+          apt-get update && apt-get install -y --no-install-recommends \
+            ca-certificates
+
+          # To fix an error on runtime/cgo
+          apt-get install -y --no-install-recommends \
+            build-essential \
+            gcc
+
+      - name: Setup Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: ${{ matrix.go-version }}
+      - name: Install dependencies
+        run: go get ./...
+      - name: Test with Go
+        run: go test ./... -json > TestResults-${{ matrix.go-version }}.json
+      - name: Upload Go test results
+        uses: actions/upload-artifact@v3
+        # TODO: Enable to upload artifacts on https://github.com/nektos/act/issues/169
+        if: ${{ !env.ACT }}
+        with:
+          name: Go-results-${{ matrix.go-version }}
+          path: TestResults-${{ matrix.go-version }}.json

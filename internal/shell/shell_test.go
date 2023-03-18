@@ -1,6 +1,8 @@
 package shell
 
 import (
+	"bufio"
+	"bytes"
 	"testing"
 
 	"github.com/at-ishikawa/go-shell/internal/mocks/mock_plugin"
@@ -11,6 +13,37 @@ import (
 	"github.com/at-ishikawa/go-shell/internal/keyboard"
 	"github.com/stretchr/testify/assert"
 )
+
+func TestShell_getInputCommand(t *testing.T) {
+	testCases := []struct {
+		name        string
+		keyCodes    []byte
+		wantCommand string
+	}{
+		{
+			name:     "Enter only",
+			keyCodes: []byte{keyboard.Enter},
+		},
+		{
+			name:     "Control C",
+			keyCodes: []byte{keyboard.ControlC},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			s := Shell{
+				in: input{
+					// Currently, this only reads the first letter
+					reader: bufio.NewReaderSize(bytes.NewReader(tc.keyCodes), 1),
+				},
+			}
+			got, gotErr := s.getInputCommand()
+			assert.NoError(t, gotErr)
+			assert.Equal(t, tc.wantCommand, got)
+		})
+	}
+}
 
 func TestGetPreviousWord(t *testing.T) {
 	testCases := []struct {

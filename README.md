@@ -1,6 +1,6 @@
 # Go Shell
 
-It's still under development.
+This is still under development.
 
 # Dependencies
 
@@ -30,7 +30,7 @@ It's still under development.
 - Variables and functions
 - No support for string except double quotes
 
-# Supported commands
+# Supported commands for suggests
 
 - kubectl
 - git

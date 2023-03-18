@@ -2,6 +2,7 @@ package shell
 
 import (
 	"bufio"
+	"io"
 	"os"
 
 	"github.com/at-ishikawa/go-shell/internal/keyboard"
@@ -13,7 +14,7 @@ type input struct {
 	fd        int
 	file      *os.File
 	termState *term.State
-	reader    *bufio.Reader
+	reader    io.Reader
 }
 
 func initInput(in *os.File) (input, error) {

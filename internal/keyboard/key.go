@@ -53,6 +53,7 @@ const (
 // https://github.com/c-bata/go-prompt/blob/82a912274504477990ecf7c852eebb7c85291772/input.go#L34
 const (
 	controlA          = 0x01
+	ControlC          = 0x03
 	controlZ          = 0x1a
 	Escape            = 0x1b
 	LeftSquareBracket = 0x5b
