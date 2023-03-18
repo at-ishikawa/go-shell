@@ -20,16 +20,15 @@ import (
 )
 
 type Shell struct {
-	history            config.History
-	in                 input
-	out                output
-	isEscapeKeyPressed bool
-	completionUi       *completion.Fzf
-	plugins            map[string]plugin.Plugin
-	defaultPlugin      plugin.Plugin
-	historyPlugin      plugin.Plugin
-	commandRunner      commandRunner
-	candidateCommand   string
+	history          config.History
+	in               input
+	out              output
+	completionUi     *completion.Fzf
+	plugins          map[string]plugin.Plugin
+	defaultPlugin    plugin.Plugin
+	historyPlugin    plugin.Plugin
+	commandRunner    commandRunner
+	candidateCommand string
 }
 
 func NewShell(inFile *os.File, outFile *os.File) (Shell, error) {
@@ -203,9 +202,37 @@ func (s *Shell) updateInputCommand(str string) string {
 	return str
 }
 
-func (s *Shell) handleShortcutKey(inputCommand string, char rune, key keyboard.Key) (string, error) {
-	if s.isEscapeKeyPressed {
-		switch key {
+func (s *Shell) moveCursorForward() {
+	if s.out.cursor < 0 {
+		s.out.moveCursor(1)
+	}
+}
+
+func (s *Shell) moveCursorBackward(inputCommand string) {
+	if -s.out.cursor < len(inputCommand) {
+		s.out.moveCursor(-1)
+	}
+}
+
+func (s *Shell) showPreviousCommandFromHistory(inputCommand string) string {
+	previousCommand := s.history.Previous()
+	if previousCommand != "" {
+		inputCommand = s.updateInputCommand(previousCommand)
+	}
+	return inputCommand
+}
+
+func (s *Shell) showNextCommandFromHistory(inputCommand string) string {
+	nextCommand, ok := s.history.Next()
+	if ok {
+		inputCommand = s.updateInputCommand(nextCommand)
+	}
+	return inputCommand
+}
+
+func (s *Shell) handleShortcutKey(inputCommand string, keyEvent keyboard.KeyEvent) (string, error) {
+	if keyEvent.IsEscapePressed {
+		switch keyEvent.Key {
 		case keyboard.B:
 			if -s.out.cursor >= len(inputCommand) {
 				break
@@ -235,13 +262,79 @@ func (s *Shell) handleShortcutKey(inputCommand string, char rune, key keyboard.K
 			inputCommand = s.updateInputCommand(inputCommand)
 			s.out.cursor += len(nextWord)
 			break
-
 		}
-		s.isEscapeKeyPressed = false
+		return inputCommand, nil
+	}
+	if keyEvent.IsControlPressed {
+		switch keyEvent.Key {
+		case keyboard.D:
+			if len(inputCommand) == 0 {
+				break
+			}
+			if s.out.cursor == 0 {
+				break
+			}
+
+			inputCommandIndex := len(inputCommand) + s.out.cursor
+			inputCommand = inputCommand[:inputCommandIndex] + inputCommand[inputCommandIndex+1:]
+			inputCommand = s.updateInputCommand(inputCommand)
+			s.out.cursor++
+			break
+		case keyboard.R:
+			var err error
+			inputCommand, err = s.suggest(s.historyPlugin, strings.Fields(inputCommand), inputCommand)
+			if err != nil {
+				fmt.Println(err)
+				break
+			}
+			inputCommand = s.updateInputCommand(inputCommand)
+			break
+		case keyboard.P:
+			inputCommand = s.showPreviousCommandFromHistory(inputCommand)
+			break
+		case keyboard.N:
+			inputCommand = s.showNextCommandFromHistory(inputCommand)
+			break
+		case keyboard.W:
+			if -s.out.cursor >= len(inputCommand) {
+				break
+			}
+
+			previousWord := getPreviousWord(inputCommand, s.out.cursor)
+			a := inputCommand[:len(inputCommand)+s.out.cursor-len(previousWord)]
+			b := inputCommand[len(inputCommand)+s.out.cursor:]
+			inputCommand = a + b
+			inputCommand = s.updateInputCommand(inputCommand)
+
+			break
+		case keyboard.K:
+			inputCommandIndex := len(inputCommand) + s.out.cursor
+			if inputCommandIndex < len(inputCommand) {
+				inputCommand = inputCommand[:inputCommandIndex]
+				inputCommand = s.updateInputCommand(inputCommand)
+				s.out.cursor = 0
+			}
+			break
+		case keyboard.A:
+			s.out.setCursor(-len(inputCommand))
+			break
+		case keyboard.E:
+			if s.candidateCommand != "" {
+				inputCommand = s.updateInputCommand(s.candidateCommand)
+			}
+			s.out.setCursor(0)
+			break
+		case keyboard.F:
+			s.moveCursorForward()
+			break
+		case keyboard.B:
+			s.moveCursorBackward(inputCommand)
+			break
+		}
 		return inputCommand, nil
 	}
 
-	switch key {
+	switch keyEvent.Key {
 	case keyboard.Backspace:
 		if len(inputCommand) == 0 {
 			break
@@ -255,82 +348,17 @@ func (s *Shell) handleShortcutKey(inputCommand string, char rune, key keyboard.K
 		}
 		inputCommand = s.updateInputCommand(inputCommand)
 		break
-	case keyboard.ControlD:
-		if len(inputCommand) == 0 {
-			break
-		}
-		if s.out.cursor == 0 {
-			break
-		}
-
-		inputCommandIndex := len(inputCommand) + s.out.cursor
-		inputCommand = inputCommand[:inputCommandIndex] + inputCommand[inputCommandIndex+1:]
-		inputCommand = s.updateInputCommand(inputCommand)
-		s.out.cursor++
+	case keyboard.ArrowUp:
+		inputCommand = s.showPreviousCommandFromHistory(inputCommand)
 		break
-	case keyboard.ControlR:
-		var err error
-		inputCommand, err = s.suggest(s.historyPlugin, strings.Fields(inputCommand), inputCommand)
-		if err != nil {
-			fmt.Println(err)
-			break
-		}
-		inputCommand = s.updateInputCommand(inputCommand)
+	case keyboard.ArrowDown:
+		inputCommand = s.showNextCommandFromHistory(inputCommand)
 		break
-	case keyboard.ControlP:
-		previousCommand := s.history.Previous()
-		if previousCommand != "" {
-			inputCommand = s.updateInputCommand(previousCommand)
-		}
+	case keyboard.ArrowRight:
+		s.moveCursorForward()
 		break
-	case keyboard.ControlN:
-		nextCommand, ok := s.history.Next()
-		if ok {
-			inputCommand = s.updateInputCommand(nextCommand)
-		}
-		break
-
-	case keyboard.ControlW:
-		if -s.out.cursor >= len(inputCommand) {
-			break
-		}
-
-		previousWord := getPreviousWord(inputCommand, s.out.cursor)
-		a := inputCommand[:len(inputCommand)+s.out.cursor-len(previousWord)]
-		b := inputCommand[len(inputCommand)+s.out.cursor:]
-		inputCommand = a + b
-		inputCommand = s.updateInputCommand(inputCommand)
-
-		break
-	case keyboard.ControlK:
-		inputCommandIndex := len(inputCommand) + s.out.cursor
-		if inputCommandIndex < len(inputCommand) {
-			inputCommand = inputCommand[:inputCommandIndex]
-			inputCommand = s.updateInputCommand(inputCommand)
-			s.out.cursor = 0
-		}
-		break
-	case keyboard.ControlA:
-		s.out.setCursor(-len(inputCommand))
-		break
-	case keyboard.ControlE:
-		if s.candidateCommand != "" {
-			inputCommand = s.updateInputCommand(s.candidateCommand)
-		}
-		s.out.setCursor(0)
-		break
-	case keyboard.ControlF:
-		if s.out.cursor < 0 {
-			s.out.moveCursor(1)
-		}
-		break
-	case keyboard.ControlB:
-		if -s.out.cursor < len(inputCommand) {
-			s.out.moveCursor(-1)
-		}
-		break
-	case keyboard.Escape:
-		s.isEscapeKeyPressed = true
+	case keyboard.ArrowLeft:
+		s.moveCursorBackward(inputCommand)
 		break
 	case keyboard.Tab:
 		args := strings.Fields(inputCommand)
@@ -351,18 +379,15 @@ func (s *Shell) handleShortcutKey(inputCommand string, char rune, key keyboard.K
 		inputCommand = s.updateInputCommand(inputCommand)
 		break
 	default:
-		if !utf8.ValidRune(char) {
-			break
-		}
-		if keyboard.ControlA <= key && key <= keyboard.ControlZ {
+		if !utf8.ValidRune(keyEvent.Rune) {
 			break
 		}
 
 		if s.out.cursor < 0 {
 			inputCommandIndex := len(inputCommand) + s.out.cursor
-			inputCommand = inputCommand[:inputCommandIndex] + string(char) + inputCommand[inputCommandIndex:]
+			inputCommand = inputCommand[:inputCommandIndex] + string(keyEvent.Rune) + inputCommand[inputCommandIndex:]
 		} else {
-			inputCommand = inputCommand + string(char)
+			inputCommand = inputCommand + string(keyEvent.Rune)
 		}
 		s.candidateCommand = s.history.StartWith(inputCommand, 0)
 		if inputCommand == s.candidateCommand {
@@ -383,17 +408,17 @@ func (s Shell) getInputCommand() (string, error) {
 
 	inputCommand := ""
 	for {
-		char, key, err := s.in.Read()
+		keyEvent, err := s.in.Read()
 		if err != nil {
 			s.out.writeLine(inputCommand, "")
 			return "", err
 		}
-		if key == keyboard.Enter {
+		if keyEvent.Key == keyboard.Enter {
 			s.out.writeLine(inputCommand, "")
 			s.out.newLine()
 			break
 		}
-		if key == keyboard.ControlC {
+		if keyEvent.IsControlPressed && keyEvent.Key == keyboard.C {
 			s.out.writeLine(inputCommand, "")
 			s.out.newLine()
 			inputCommand = ""
@@ -404,7 +429,7 @@ func (s Shell) getInputCommand() (string, error) {
 			// Don't cancel a shell when the child command is canceled
 			<-interuptSignals
 		}()
-		inputCommand, err = s.handleShortcutKey(inputCommand, char, key)
+		inputCommand, err = s.handleShortcutKey(inputCommand, keyEvent)
 		if err != nil {
 			s.out.writeLine("", "")
 			return "", err

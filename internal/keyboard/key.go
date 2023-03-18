@@ -1,6 +1,14 @@
 package keyboard
 
-type Key int
+type Key byte
+
+type KeyEvent struct {
+	Key  Key
+	Rune rune
+
+	IsEscapePressed  bool
+	IsControlPressed bool
+}
 
 // https://pkg.go.dev/gobot.io/x/gobot/platforms/keyboard
 const (
@@ -33,90 +41,67 @@ const (
 	Z
 )
 
-// https://github.com/c-bata/go-prompt/blob/82a912274504477990ecf7c852eebb7c85291772/input.go#L34
+// https://pkg.go.dev/gobot.io/x/gobot/platforms/keyboard#pkg-constants
 const (
-	Key_Unknown Key = 0
-	ControlA        = 0x01
-	ControlB        = 0x02
-	ControlC        = 0x03
-	ControlD        = 0x04
-	ControlE        = 0x05
-	ControlF        = 0x06
-	ControlG        = 0x07
-	ControlH        = 0x08
-	ControlI        = 0x09
-	ControlJ        = 0x0a
-	ControlK        = 0x0b
-	ControlL        = 0x0c
-	ControlM        = 0x0d
-	ControlN        = 0x0e
-	ControlO        = 0x0f
-	ControlP        = 0x10
-	ControlQ        = 0x11
-	ControlR        = 0x12
-	ControlS        = 0x13
-	ControlT        = 0x14
-	ControlU        = 0x15
-	ControlV        = 0x16
-	ControlW        = 0x17
-	ControlX        = 0x18
-	ControlY        = 0x19
-	ControlZ        = 0x1a
-	Escape          = 0x1b
-	Enter           = 0x0D
-	Tab             = 0x9
-	Backspace       = 0x7f
+	// ArrowUp is the same ANSI code as upper A
+	ArrowUp = iota + 65
+	ArrowDown
+	ArrowRight
+	ArrowLeft
 )
 
-var keys = []Key{
-	B,
-	D,
-	F,
+// https://github.com/c-bata/go-prompt/blob/82a912274504477990ecf7c852eebb7c85291772/input.go#L34
+const (
+	controlA          = 0x01
+	controlZ          = 0x1a
+	Escape            = 0x1b
+	LeftSquareBracket = 0x5b
 
-	ControlA,
-	ControlB,
-	ControlC,
-	ControlD,
-	ControlE,
-	ControlF,
-	ControlG,
-	ControlH,
-	ControlI,
-	ControlJ,
-	ControlK,
-	ControlL,
-	ControlM,
-	ControlN,
-	ControlO,
-	ControlP,
-	ControlQ,
-	ControlR,
-	ControlS,
-	ControlT,
-	ControlU,
-	ControlV,
-	ControlW,
-	ControlX,
-	ControlY,
-	ControlZ,
-	Escape,
+	// Enter key is the same as Control B
+	Enter     = 0x0D
+	Tab       = 0x9
+	Backspace = 0x7f
+)
+
+var specialKeys = []byte{
 	Enter,
 	Tab,
 	Backspace,
 }
 
-var keyMap map[byte]Key
-
-func init() {
-	keyMap = make(map[byte]Key, len(keys))
-	for _, key := range keys {
-		keyMap[byte(key)] = key
+func GetKeyEvent(bytes []byte) KeyEvent {
+	keyEvent := KeyEvent{}
+	if len(bytes) == 0 {
+		return KeyEvent{}
 	}
-}
 
-func GetKey(b byte) Key {
-	if k, ok := keyMap[b]; ok {
-		return k
+	if bytes[0] == Escape {
+		if bytes[1] == LeftSquareBracket {
+			// This should be arrow keys
+			keyEvent.Key = Key(bytes[2])
+			return keyEvent
+		}
+
+		keyEvent.IsEscapePressed = true
+		bytes = bytes[1:]
 	}
-	return Key_Unknown
+
+	for _, specialKey := range specialKeys {
+		if bytes[0] == specialKey {
+			keyEvent.Key = Key(specialKey)
+			return keyEvent
+		}
+	}
+
+	if bytes[0] >= controlA && bytes[0] <= controlZ {
+		keyEvent.Key = Key(bytes[0] - controlA + A)
+		keyEvent.IsControlPressed = true
+	} else {
+		if keyEvent.IsEscapePressed {
+			keyEvent.Key = Key(bytes[0])
+		}
+		keyEvent.Rune = rune(bytes[0])
+	}
+
+	return keyEvent
 }

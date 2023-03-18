@@ -40,7 +40,9 @@ func (i *input) finalize() error {
 	return i.restore()
 }
 
-func (i *input) Read() (rune, keyboard.Key, error) {
-	b, err := i.reader.ReadByte()
-	return rune(b), keyboard.GetKey(b), err
+func (i *input) Read() (keyboard.KeyEvent, error) {
+	buffer := make([]byte, 8)
+	bufferSize, err := i.reader.Read(buffer)
+	// fmt.Printf("%v\n", buffer)
+	return keyboard.GetKeyEvent(buffer[:bufferSize]), err
 }

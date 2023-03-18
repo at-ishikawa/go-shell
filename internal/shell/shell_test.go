@@ -105,12 +105,12 @@ func Test_HandleShortcutKey(t *testing.T) {
 			{
 				name:        "Type a letter",
 				command:     "ab",
-				typedChar:   rune(byte('c')),
+				typedChar:   'c',
 				wantCommand: "abc",
 			},
 			{
 				name:        "Type a letter when no command",
-				typedChar:   rune(byte('c')),
+				typedChar:   'c',
 				wantCommand: "c",
 			},
 			{
@@ -121,7 +121,7 @@ func Test_HandleShortcutKey(t *testing.T) {
 					},
 				},
 				command:     "ab",
-				typedChar:   rune(byte('c')),
+				typedChar:   'c',
 				wantCommand: "acb",
 				wantCursor:  -1,
 			},
@@ -129,12 +129,12 @@ func Test_HandleShortcutKey(t *testing.T) {
 			{
 				name:        "Type a space",
 				command:     "ab",
-				typedChar:   rune(byte(' ')),
+				typedChar:   ' ',
 				wantCommand: "ab ",
 			},
 			{
 				name:        "Type a space when no command",
-				typedChar:   rune(byte(' ')),
+				typedChar:   ' ',
 				wantCommand: " ",
 			},
 			{
@@ -145,7 +145,7 @@ func Test_HandleShortcutKey(t *testing.T) {
 					},
 				},
 				command:     "ab",
-				typedChar:   rune(byte(' ')),
+				typedChar:   ' ',
 				wantCommand: "a b",
 				wantCursor:  -1,
 			},
@@ -153,13 +153,14 @@ func Test_HandleShortcutKey(t *testing.T) {
 
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
-				gotLine, gotErr := tc.shell.handleShortcutKey(tc.command, tc.typedChar, keyboard.Key_Unknown)
+				gotLine, gotErr := tc.shell.handleShortcutKey(tc.command, keyboard.KeyEvent{
+					Rune: tc.typedChar,
+				})
 				assert.Equal(t, tc.wantCommand, gotLine)
 				assert.Equal(t, tc.wantCursor, tc.shell.out.cursor)
 				assert.Equal(t, tc.wantErr, gotErr)
 			})
 		}
-
 	})
 
 	t.Run("Move cursor shortcuts", func(t *testing.T) {
@@ -168,23 +169,37 @@ func Test_HandleShortcutKey(t *testing.T) {
 			name                 string
 			shell                Shell
 			command              string
-			typedChar            rune
-			keyCode              keyboard.Key
+			keyEvent             keyboard.KeyEvent
 			wantCommand          string
 			wantCandidateCommand string
 			wantCursor           int
 			wantErr              error
 		}{
 			{
-				name:        "Move a cursor back",
-				command:     "ab",
-				keyCode:     keyboard.ControlB,
+				name:    "Move a cursor back",
+				command: "ab",
+				keyEvent: keyboard.KeyEvent{
+					Key:              keyboard.B,
+					IsControlPressed: true,
+				},
 				wantCommand: "ab",
 				wantCursor:  -1,
 			},
 			{
-				name:    "Move back when no command",
-				keyCode: keyboard.ControlB,
+				name:    "Move a cursor back",
+				command: "ab",
+				keyEvent: keyboard.KeyEvent{
+					Key: keyboard.ArrowLeft,
+				},
+				wantCommand: "ab",
+				wantCursor:  -1,
+			},
+			{
+				name: "Move back when no command",
+				keyEvent: keyboard.KeyEvent{
+					Key:              keyboard.B,
+					IsControlPressed: true,
+				},
 			},
 			{
 				name: "Move a cursor back when the cursor is the beginning of the command",
@@ -193,8 +208,11 @@ func Test_HandleShortcutKey(t *testing.T) {
 						cursor: -2,
 					},
 				},
-				command:     "ab",
-				keyCode:     keyboard.ControlB,
+				command: "ab",
+				keyEvent: keyboard.KeyEvent{
+					Key:              keyboard.B,
+					IsControlPressed: true,
+				},
 				wantCommand: "ab",
 				wantCursor:  -2,
 			},
@@ -206,31 +224,59 @@ func Test_HandleShortcutKey(t *testing.T) {
 						cursor: -1,
 					},
 				},
-				command:     "ab",
-				keyCode:     keyboard.ControlF,
+				command: "ab",
+				keyEvent: keyboard.KeyEvent{
+					Key:              keyboard.F,
+					IsControlPressed: true,
+				},
 				wantCommand: "ab",
 			},
 			{
-				name:    "Move forward when no command",
-				keyCode: keyboard.ControlF,
+				name: "Move a cursor forward by arrow key",
+				shell: Shell{
+					out: output{
+						cursor: -1,
+					},
+				},
+				command: "ab",
+				keyEvent: keyboard.KeyEvent{
+					Key: keyboard.ArrowRight,
+				},
+				wantCommand: "ab",
 			},
 			{
-				name:        "Move a cursor forward when the cursor is the end of the command",
-				command:     "ab",
-				keyCode:     keyboard.ControlF,
+				name: "Move forward when no command",
+				keyEvent: keyboard.KeyEvent{
+					Key:              keyboard.F,
+					IsControlPressed: true,
+				},
+			},
+			{
+				name:    "Move a cursor forward when the cursor is the end of the command",
+				command: "ab",
+				keyEvent: keyboard.KeyEvent{
+					Key:              keyboard.F,
+					IsControlPressed: true,
+				},
 				wantCommand: "ab",
 			},
 
 			{
-				name:        "Move a cursor on the beginning of a command",
-				command:     "ab",
-				keyCode:     keyboard.ControlA,
+				name:    "Move a cursor on the beginning of a command",
+				command: "ab",
+				keyEvent: keyboard.KeyEvent{
+					Key:              keyboard.A,
+					IsControlPressed: true,
+				},
 				wantCommand: "ab",
 				wantCursor:  -2,
 			},
 			{
-				name:    "Move a cursor on the beginning on the command when no command",
-				keyCode: keyboard.ControlA,
+				name: "Move a cursor on the beginning on the command when no command",
+				keyEvent: keyboard.KeyEvent{
+					Key:              keyboard.A,
+					IsControlPressed: true,
+				},
 			},
 			{
 				name: "Move a cursor on the beginning on the command when it's already on the beginning on the command",
@@ -239,8 +285,11 @@ func Test_HandleShortcutKey(t *testing.T) {
 						cursor: -2,
 					},
 				},
-				command:     "ab",
-				keyCode:     keyboard.ControlA,
+				command: "ab",
+				keyEvent: keyboard.KeyEvent{
+					Key:              keyboard.A,
+					IsControlPressed: true,
+				},
 				wantCommand: "ab",
 				wantCursor:  -2,
 			},
@@ -252,8 +301,11 @@ func Test_HandleShortcutKey(t *testing.T) {
 						cursor: -2,
 					},
 				},
-				command:     "ab",
-				keyCode:     keyboard.ControlE,
+				command: "ab",
+				keyEvent: keyboard.KeyEvent{
+					Key:              keyboard.E,
+					IsControlPressed: true,
+				},
 				wantCommand: "ab",
 			},
 			{
@@ -264,25 +316,34 @@ func Test_HandleShortcutKey(t *testing.T) {
 					},
 					candidateCommand: "ab cd ef",
 				},
-				command:     "ab",
-				keyCode:     keyboard.ControlE,
+				command: "ab",
+				keyEvent: keyboard.KeyEvent{
+					Key:              keyboard.E,
+					IsControlPressed: true,
+				},
 				wantCommand: "ab cd ef",
 			},
 			{
-				name:    "Move a cursor on the end on the command when no command",
-				keyCode: keyboard.ControlE,
+				name: "Move a cursor on the end on the command when no command",
+				keyEvent: keyboard.KeyEvent{
+					Key:              keyboard.E,
+					IsControlPressed: true,
+				},
 			},
 			{
-				name:        "Move a cursor on the end on the command when it's already on the beginning on the command",
-				command:     "ab",
-				keyCode:     keyboard.ControlE,
+				name:    "Move a cursor on the end on the command when it's already on the beginning on the command",
+				command: "ab",
+				keyEvent: keyboard.KeyEvent{
+					Key:              keyboard.E,
+					IsControlPressed: true,
+				},
 				wantCommand: "ab",
 			},
 		}
 
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
-				gotLine, gotErr := tc.shell.handleShortcutKey(tc.command, tc.typedChar, tc.keyCode)
+				gotLine, gotErr := tc.shell.handleShortcutKey(tc.command, tc.keyEvent)
 				assert.Equal(t, tc.wantCommand, gotLine)
 				assert.Equal(t, tc.wantCursor, tc.shell.out.cursor)
 				assert.Equal(t, tc.wantErr, gotErr)
@@ -295,8 +356,7 @@ func Test_HandleShortcutKey(t *testing.T) {
 			name                 string
 			shell                Shell
 			command              string
-			typedChar            rune
-			keyCode              keyboard.Key
+			keyEvent             keyboard.KeyEvent
 			wantCommand          string
 			wantCandidateCommand string
 			wantCursor           int
@@ -307,13 +367,17 @@ func Test_HandleShortcutKey(t *testing.T) {
 				shell: Shell{
 					candidateCommand: "abcde",
 				},
-				command:     "ab",
-				keyCode:     keyboard.Backspace,
+				command: "ab",
+				keyEvent: keyboard.KeyEvent{
+					Key: keyboard.Backspace,
+				},
 				wantCommand: "a",
 			},
 			{
-				name:    "Backspace when no command",
-				keyCode: keyboard.Backspace,
+				name: "Backspace when no command",
+				keyEvent: keyboard.KeyEvent{
+					Key: keyboard.Backspace,
+				},
 			},
 			{
 				name: "Backspace when a cursor is in the middle",
@@ -322,8 +386,10 @@ func Test_HandleShortcutKey(t *testing.T) {
 						cursor: -1,
 					},
 				},
-				command:     "abc",
-				keyCode:     keyboard.Backspace,
+				command: "abc",
+				keyEvent: keyboard.KeyEvent{
+					Key: keyboard.Backspace,
+				},
 				wantCommand: "ac",
 				wantCursor:  -1,
 			},
@@ -336,13 +402,19 @@ func Test_HandleShortcutKey(t *testing.T) {
 					},
 					candidateCommand: "abcde",
 				},
-				command:     "ab",
-				keyCode:     keyboard.ControlD,
+				command: "ab",
+				keyEvent: keyboard.KeyEvent{
+					Key:              keyboard.D,
+					IsControlPressed: true,
+				},
 				wantCommand: "a",
 			},
 			{
-				name:    "Delete one char forward when no command",
-				keyCode: keyboard.ControlD,
+				name: "Delete one char forward when no command",
+				keyEvent: keyboard.KeyEvent{
+					Key:              keyboard.D,
+					IsControlPressed: true,
+				},
 			},
 			{
 				name: "Delete one char forward when a cursor is in the beginning",
@@ -351,8 +423,11 @@ func Test_HandleShortcutKey(t *testing.T) {
 						cursor: -3,
 					},
 				},
-				command:     "abc",
-				keyCode:     keyboard.ControlD,
+				command: "abc",
+				keyEvent: keyboard.KeyEvent{
+					Key:              keyboard.D,
+					IsControlPressed: true,
+				},
 				wantCommand: "bc",
 				wantCursor:  -2,
 			},
@@ -365,14 +440,20 @@ func Test_HandleShortcutKey(t *testing.T) {
 					},
 					candidateCommand: "abc de",
 				},
-				command:     "abc d",
-				keyCode:     keyboard.ControlW,
+				command: "abc d",
+				keyEvent: keyboard.KeyEvent{
+					Key:              keyboard.W,
+					IsControlPressed: true,
+				},
 				wantCommand: " d",
 				wantCursor:  -2,
 			},
 			{
-				name:    "Delete a word before a cursor when no command",
-				keyCode: keyboard.ControlW,
+				name: "Delete a word before a cursor when no command",
+				keyEvent: keyboard.KeyEvent{
+					Key:              keyboard.W,
+					IsControlPressed: true,
+				},
 			},
 			{
 				name: "Delete a word before a cursor on the beginning of the command",
@@ -381,8 +462,11 @@ func Test_HandleShortcutKey(t *testing.T) {
 						cursor: -2,
 					},
 				},
-				command:     "ab",
-				keyCode:     keyboard.ControlW,
+				command: "ab",
+				keyEvent: keyboard.KeyEvent{
+					Key:              keyboard.W,
+					IsControlPressed: true,
+				},
 				wantCommand: "ab",
 				wantCursor:  -2,
 			},
@@ -395,25 +479,34 @@ func Test_HandleShortcutKey(t *testing.T) {
 					},
 					candidateCommand: "abcde",
 				},
-				command:     "abc",
-				keyCode:     keyboard.ControlK,
+				command: "abc",
+				keyEvent: keyboard.KeyEvent{
+					Key:              keyboard.K,
+					IsControlPressed: true,
+				},
 				wantCommand: "a",
 			},
 			{
-				name:    "Delete a line after a cursor when no command",
-				keyCode: keyboard.ControlK,
+				name: "Delete a line after a cursor when no command",
+				keyEvent: keyboard.KeyEvent{
+					Key:              keyboard.K,
+					IsControlPressed: true,
+				},
 			},
 			{
-				name:        "Delete a line after a cursor on the end of the command",
-				command:     "ab",
-				keyCode:     keyboard.ControlK,
+				name:    "Delete a line after a cursor on the end of the command",
+				command: "ab",
+				keyEvent: keyboard.KeyEvent{
+					Key:              keyboard.K,
+					IsControlPressed: true,
+				},
 				wantCommand: "ab",
 			},
 		}
 
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
-				gotLine, gotErr := tc.shell.handleShortcutKey(tc.command, tc.typedChar, tc.keyCode)
+				gotLine, gotErr := tc.shell.handleShortcutKey(tc.command, tc.keyEvent)
 				assert.Equal(t, tc.wantCommand, gotLine)
 				assert.Equal(t, tc.wantCandidateCommand, tc.shell.candidateCommand)
 				assert.Equal(t, tc.wantCursor, tc.shell.out.cursor)
@@ -427,8 +520,7 @@ func Test_HandleShortcutKey(t *testing.T) {
 			name                 string
 			shell                Shell
 			command              string
-			typedChar            rune
-			keyCode              keyboard.Key
+			keyEvent             keyboard.KeyEvent
 			wantCommand          string
 			wantCandidateCommand string
 			wantCursor           int
@@ -443,8 +535,26 @@ func Test_HandleShortcutKey(t *testing.T) {
 					}, 0),
 					candidateCommand: "abcde",
 				},
-				command:     "ab",
-				keyCode:     keyboard.ControlP,
+				command: "ab",
+				keyEvent: keyboard.KeyEvent{
+					Key:              keyboard.P,
+					IsControlPressed: true,
+				},
+				wantCommand: "command2",
+			},
+			{
+				name: "Show the previous command from a history from a command by ArrowUp",
+				shell: Shell{
+					history: newHistoryFromCommands([]string{
+						"command1",
+						"command2",
+					}, 0),
+					candidateCommand: "abcde",
+				},
+				command: "ab",
+				keyEvent: keyboard.KeyEvent{
+					Key: keyboard.ArrowUp,
+				},
 				wantCommand: "command2",
 			},
 			{
@@ -455,13 +565,19 @@ func Test_HandleShortcutKey(t *testing.T) {
 						"command2",
 					}, 1),
 				},
-				command:     "command2",
-				keyCode:     keyboard.ControlP,
+				command: "command2",
+				keyEvent: keyboard.KeyEvent{
+					Key:              keyboard.P,
+					IsControlPressed: true,
+				},
 				wantCommand: "command1",
 			},
 			{
-				name:    "Show the previous command from a history when no history",
-				keyCode: keyboard.ControlP,
+				name: "Show the previous command from a history when no history",
+				keyEvent: keyboard.KeyEvent{
+					Key:              keyboard.P,
+					IsControlPressed: true,
+				},
 			},
 			{
 				name: "Show the previous command from a history when there is no history",
@@ -470,8 +586,11 @@ func Test_HandleShortcutKey(t *testing.T) {
 						"command1",
 					}, 0),
 				},
-				command:     "command1",
-				keyCode:     keyboard.ControlP,
+				command: "command1",
+				keyEvent: keyboard.KeyEvent{
+					Key:              keyboard.P,
+					IsControlPressed: true,
+				},
 				wantCommand: "command1",
 			},
 
@@ -484,8 +603,26 @@ func Test_HandleShortcutKey(t *testing.T) {
 					}, 2),
 					candidateCommand: "command1 abc",
 				},
-				command:     "command1",
-				keyCode:     keyboard.ControlN,
+				command: "command1",
+				keyEvent: keyboard.KeyEvent{
+					Key:              keyboard.N,
+					IsControlPressed: true,
+				},
+				wantCommand: "command2",
+			},
+			{
+				name: "Show the next command from a history by ArrowDown",
+				shell: Shell{
+					history: newHistoryFromCommands([]string{
+						"command1",
+						"command2",
+					}, 2),
+					candidateCommand: "command1 abc",
+				},
+				command: "command1",
+				keyEvent: keyboard.KeyEvent{
+					Key: keyboard.ArrowDown,
+				},
 				wantCommand: "command2",
 			},
 			{
@@ -496,13 +633,19 @@ func Test_HandleShortcutKey(t *testing.T) {
 						"command2",
 					}, 1),
 				},
-				command:     "command2",
-				keyCode:     keyboard.ControlN,
+				command: "command2",
+				keyEvent: keyboard.KeyEvent{
+					Key:              keyboard.N,
+					IsControlPressed: true,
+				},
 				wantCommand: "",
 			},
 			{
-				name:    "Show the next command when no history",
-				keyCode: keyboard.ControlN,
+				name: "Show the next command when no history",
+				keyEvent: keyboard.KeyEvent{
+					Key:              keyboard.N,
+					IsControlPressed: true,
+				},
 			},
 			{
 				name: "Show the next history when there is no history",
@@ -511,8 +654,11 @@ func Test_HandleShortcutKey(t *testing.T) {
 						"command1",
 					}, 0),
 				},
-				command:     "abc",
-				keyCode:     keyboard.ControlN,
+				command: "abc",
+				keyEvent: keyboard.KeyEvent{
+					Key:              keyboard.N,
+					IsControlPressed: true,
+				},
 				wantCommand: "abc",
 			},
 
@@ -521,7 +667,7 @@ func Test_HandleShortcutKey(t *testing.T) {
 
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
-				gotLine, gotErr := tc.shell.handleShortcutKey(tc.command, tc.typedChar, tc.keyCode)
+				gotLine, gotErr := tc.shell.handleShortcutKey(tc.command, tc.keyEvent)
 				assert.Equal(t, tc.wantCommand, gotLine)
 				assert.Equal(t, tc.wantCandidateCommand, tc.shell.candidateCommand)
 				assert.Equal(t, tc.wantCursor, tc.shell.out.cursor)
@@ -535,8 +681,7 @@ func Test_HandleShortcutKey(t *testing.T) {
 			name                 string
 			shell                Shell
 			command              string
-			typedChar            rune
-			keyCode              keyboard.Key
+			keyEvent             keyboard.KeyEvent
 			wantCommand          string
 			wantCursor           int
 			wantCandidateCommand string
@@ -547,16 +692,22 @@ func Test_HandleShortcutKey(t *testing.T) {
 				shell: Shell{
 					candidateCommand: "a b  c d",
 				},
-				command:              "a b  ",
-				keyCode:              keyboard.B,
+				command: "a b  ",
+				keyEvent: keyboard.KeyEvent{
+					Key:             keyboard.B,
+					IsEscapePressed: true,
+				},
 				wantCommand:          "a b  ",
 				wantCursor:           -3,
 				wantCandidateCommand: "a b  c d",
 			},
 			{
-				name:        "Move a cursor a word back if a previous char is a letter",
-				command:     "a bc",
-				keyCode:     keyboard.B,
+				name:    "Move a cursor a word back if a previous char is a letter",
+				command: "a bc",
+				keyEvent: keyboard.KeyEvent{
+					Key:             keyboard.B,
+					IsEscapePressed: true,
+				},
 				wantCommand: "a bc",
 				wantCursor:  -2,
 			},
@@ -567,8 +718,11 @@ func Test_HandleShortcutKey(t *testing.T) {
 						cursor: -5,
 					},
 				},
-				command:     "a b  c d e",
-				keyCode:     keyboard.B,
+				command: "a b  c d e",
+				keyEvent: keyboard.KeyEvent{
+					Key:             keyboard.B,
+					IsEscapePressed: true,
+				},
 				wantCommand: "a b  c d e",
 				wantCursor:  -8,
 			},
@@ -579,14 +733,20 @@ func Test_HandleShortcutKey(t *testing.T) {
 						cursor: -3,
 					},
 				},
-				command:     "a bcd e",
-				keyCode:     keyboard.B,
+				command: "a bcd e",
+				keyEvent: keyboard.KeyEvent{
+					Key:             keyboard.B,
+					IsEscapePressed: true,
+				},
 				wantCommand: "a bcd e",
 				wantCursor:  -5,
 			},
 			{
-				name:    "Move a cursor a word back when no command",
-				keyCode: keyboard.B,
+				name: "Move a cursor a word back when no command",
+				keyEvent: keyboard.KeyEvent{
+					Key:             keyboard.B,
+					IsEscapePressed: true,
+				},
 			},
 			{
 				name: "Move a cursor a word back if a cursor is on the beginning of the command",
@@ -595,109 +755,147 @@ func Test_HandleShortcutKey(t *testing.T) {
 						cursor: -1,
 					},
 				},
-				command:     "a",
-				keyCode:     keyboard.B,
+				command: "a",
+				keyEvent: keyboard.KeyEvent{
+					Key:             keyboard.B,
+					IsEscapePressed: true,
+				},
 				wantCommand: "a",
 				wantCursor:  -1,
 			},
 			{
-				name:        "Move a cursor a word back if a command is only space",
-				command:     " ",
-				keyCode:     keyboard.B,
+				name:    "Move a cursor a word back if a command is only space",
+				command: " ",
+				keyEvent: keyboard.KeyEvent{
+					Key:             keyboard.B,
+					IsEscapePressed: true,
+				},
 				wantCommand: " ",
 				wantCursor:  -1,
 			},
 
 			{
-				name:        "Move a cursor a word forward if the next char is a space",
-				shell:       Shell{out: output{cursor: -2}},
-				command:     "a b",
-				keyCode:     keyboard.F,
+				name:    "Move a cursor a word forward if the next char is a space",
+				shell:   Shell{out: output{cursor: -2}},
+				command: "a b",
+				keyEvent: keyboard.KeyEvent{
+					Key:             keyboard.F,
+					IsEscapePressed: true,
+				},
 				wantCommand: "a b",
 				wantCursor:  0,
 			},
 			{
-				name:        "Move a cursor a word forward if the next char is a letter before the last word",
-				shell:       Shell{out: output{cursor: -1}},
-				command:     "a bc d",
-				keyCode:     keyboard.F,
+				name:    "Move a cursor a word forward if the next char is a letter before the last word",
+				shell:   Shell{out: output{cursor: -1}},
+				command: "a bc d",
+				keyEvent: keyboard.KeyEvent{
+					Key:             keyboard.F,
+					IsEscapePressed: true,
+				},
 				wantCommand: "a bc d",
 			},
 			{
-				name:        "Move a cursor a word forward if the next char is a letter",
-				shell:       Shell{out: output{cursor: -4}},
-				command:     "a bc d",
-				keyCode:     keyboard.F,
+				name:    "Move a cursor a word forward if the next char is a letter",
+				shell:   Shell{out: output{cursor: -4}},
+				command: "a bc d",
+				keyEvent: keyboard.KeyEvent{
+					Key:             keyboard.F,
+					IsEscapePressed: true,
+				},
 				wantCommand: "a bc d",
 				wantCursor:  -2,
 			},
 			{
-				name:    "Move a cursor a word forward when no command",
-				keyCode: keyboard.F,
+				name: "Move a cursor a word forward when no command",
+				keyEvent: keyboard.KeyEvent{
+					Key:             keyboard.F,
+					IsEscapePressed: true,
+				},
 			},
 			{
-				name:        "Move a cursor a word forward if a cursor is on the end of the command",
-				command:     "a",
-				keyCode:     keyboard.F,
+				name:    "Move a cursor a word forward if a cursor is on the end of the command",
+				command: "a",
+				keyEvent: keyboard.KeyEvent{
+					Key:             keyboard.F,
+					IsEscapePressed: true,
+				},
 				wantCommand: "a",
 			},
 			{
-				name:        "Move a cursor a word forward if a command is only space",
-				shell:       Shell{out: output{cursor: -1}},
-				command:     " ",
-				keyCode:     keyboard.F,
+				name:    "Move a cursor a word forward if a command is only space",
+				shell:   Shell{out: output{cursor: -1}},
+				command: " ",
+				keyEvent: keyboard.KeyEvent{
+					Key:             keyboard.F,
+					IsEscapePressed: true,
+				},
 				wantCommand: " ",
 			},
 
 			{
-				name:        "Delete a word forward if the next char is a space",
-				shell:       Shell{out: output{cursor: -2}},
-				command:     "a b",
-				keyCode:     keyboard.D,
+				name:    "Delete a word forward if the next char is a space",
+				shell:   Shell{out: output{cursor: -2}},
+				command: "a b",
+				keyEvent: keyboard.KeyEvent{
+					Key:             keyboard.D,
+					IsEscapePressed: true,
+				},
 				wantCommand: "a",
 				wantCursor:  0,
 			},
 			{
-				name:        "Delete a word forward if the next char is a letter before the last word",
-				shell:       Shell{out: output{cursor: -1}},
-				command:     "a bc d",
-				keyCode:     keyboard.D,
+				name:    "Delete a word forward if the next char is a letter before the last word",
+				shell:   Shell{out: output{cursor: -1}},
+				command: "a bc d",
+				keyEvent: keyboard.KeyEvent{
+					Key:             keyboard.D,
+					IsEscapePressed: true,
+				},
 				wantCommand: "a bc ",
 			},
 			{
-				name:        "Delete a word forward if the next char is a letter",
-				shell:       Shell{out: output{cursor: -4}},
-				command:     "a bc d",
-				keyCode:     keyboard.D,
+				name:    "Delete a word forward if the next char is a letter",
+				shell:   Shell{out: output{cursor: -4}},
+				command: "a bc d",
+				keyEvent: keyboard.KeyEvent{
+					Key:             keyboard.D,
+					IsEscapePressed: true,
+				},
 				wantCommand: "a  d",
 				wantCursor:  -2,
 			},
 			{
-				name:    "Delete a word forward when no command",
-				keyCode: keyboard.D,
+				name: "Delete a word forward when no command",
+				keyEvent: keyboard.KeyEvent{
+					Key:             keyboard.D,
+					IsEscapePressed: true,
+				},
 			},
 			{
-				name:        "Delete a word forward if a cursor is on the end of the command",
-				command:     "a",
-				keyCode:     keyboard.D,
+				name:    "Delete a word forward if a cursor is on the end of the command",
+				command: "a",
+				keyEvent: keyboard.KeyEvent{
+					Key:             keyboard.D,
+					IsEscapePressed: true,
+				},
 				wantCommand: "a",
 			},
 			{
-				name:        "Delete a word forward if a command is only space",
-				shell:       Shell{out: output{cursor: -1}},
-				command:     " ",
-				keyCode:     keyboard.D,
+				name:    "Delete a word forward if a command is only space",
+				shell:   Shell{out: output{cursor: -1}},
+				command: " ",
+				keyEvent: keyboard.KeyEvent{
+					Key:             keyboard.D,
+					IsEscapePressed: true,
+				},
 				wantCommand: "",
 			},
 		}
 
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
-				gotLine, gotErr := tc.shell.handleShortcutKey(tc.command, tc.typedChar, keyboard.Escape)
-				assert.True(t, tc.shell.isEscapeKeyPressed)
-
-				gotLine, gotErr = tc.shell.handleShortcutKey(gotLine, tc.typedChar, tc.keyCode)
-				assert.False(t, tc.shell.isEscapeKeyPressed)
+				gotLine, gotErr := tc.shell.handleShortcutKey(tc.command, tc.keyEvent)
 				assert.Equal(t, tc.wantCommand, gotLine)
 				assert.Equal(t, tc.wantCursor, tc.shell.out.cursor)
 				assert.Equal(t, tc.wantCandidateCommand, tc.shell.candidateCommand)
@@ -712,8 +910,7 @@ func Test_HandleShortcutKey(t *testing.T) {
 			shell Shell
 
 			inputCommand string
-			typedChar    rune
-			keyCode      keyboard.Key
+			keyEvent     keyboard.KeyEvent
 
 			mockDefaultPlugin func(mockPlugin *mock_plugin.MockPlugin)
 
@@ -723,8 +920,10 @@ func Test_HandleShortcutKey(t *testing.T) {
 			wantErr              error
 		}{
 			{
-				name:    "No command. No suggest",
-				keyCode: keyboard.Tab,
+				name: "No command. No suggest",
+				keyEvent: keyboard.KeyEvent{
+					Key: keyboard.Tab,
+				},
 				mockDefaultPlugin: func(mockPlugin *mock_plugin.MockPlugin) {
 					mockPlugin.EXPECT().Suggest(gomock.Any()).Times(0)
 				},
@@ -733,7 +932,9 @@ func Test_HandleShortcutKey(t *testing.T) {
 				name: "default suggest",
 
 				inputCommand: "ls ",
-				keyCode:      keyboard.Tab,
+				keyEvent: keyboard.KeyEvent{
+					Key: keyboard.Tab,
+				},
 
 				mockDefaultPlugin: func(mockPlugin *mock_plugin.MockPlugin) {
 					mockPlugin.EXPECT().Suggest(gomock.Any()).Return([]string{"/tmp"}, nil).Times(1)
@@ -750,7 +951,7 @@ func Test_HandleShortcutKey(t *testing.T) {
 				tc.mockDefaultPlugin(mockPlugin)
 				tc.shell.defaultPlugin = mockPlugin
 
-				gotLine, gotErr := tc.shell.handleShortcutKey(tc.inputCommand, tc.typedChar, tc.keyCode)
+				gotLine, gotErr := tc.shell.handleShortcutKey(tc.inputCommand, tc.keyEvent)
 				assert.Equal(t, tc.wantCommand, gotLine)
 				assert.Equal(t, tc.wantCursor, tc.shell.out.cursor)
 				assert.Equal(t, tc.wantCandidateCommand, tc.shell.candidateCommand)
