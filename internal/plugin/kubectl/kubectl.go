@@ -74,26 +74,39 @@ func (k *KubeCtlPlugin) Command() string {
 func (k *KubeCtlPlugin) Suggest(arg plugin.SuggestArg) ([]string, error) {
 	args := arg.Args
 	if len(args) < 2 {
-		return []string{}, nil
+		return arg.Suggest(k.completionUi)
 	}
 	var namespace string
 	var resultOptions map[string]string
 	args, resultOptions = filterOptions(args, kubectloptions.KubeCtlGlobalOptions)
+	if len(args) < 2 {
+		return arg.Suggest(k.completionUi)
+	}
 
 	subCommand := args[1]
-	subCommandOptions, ok := kubectloptions.KubeCtlOptions[subCommand]
-	if !ok {
-		// unsupported commands
-		return []string{}, nil
-	}
-	if ns, ok := resultOptions["namespace"]; ok {
-		namespace = ns
+	if subCommand != "view-secret" {
+		subCommandOptions, ok := kubectloptions.KubeCtlOptions[subCommand]
+		if !ok {
+			return arg.Suggest(k.completionUi)
+		}
+		if ns, ok := resultOptions["namespace"]; ok {
+			namespace = ns
+		}
+		args, _ = filterOptions(args, subCommandOptions)
 	}
 
-	args, _ = filterOptions(args, subCommandOptions)
 	var resource string
 	var isMultipleResources bool
 	switch subCommand {
+	case "view-secret":
+		resource = "secrets"
+		break
+	case "rollout":
+		if len(args) < 4 {
+			return arg.Suggest(k.completionUi)
+		}
+		resource = args[3]
+		break
 	case "exec", "log", "logs":
 		resource = "pods"
 		break
@@ -103,9 +116,12 @@ func (k *KubeCtlPlugin) Suggest(arg plugin.SuggestArg) ([]string, error) {
 		break
 	default:
 		if len(args) < 3 {
-			return []string{}, nil
+			return arg.Suggest(k.completionUi)
 		}
 		resource = args[2]
+		if resource == "events" {
+			return arg.Suggest(k.completionUi)
+		}
 	}
 
 	suggestOptions := []string{

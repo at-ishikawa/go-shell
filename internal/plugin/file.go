@@ -6,24 +6,20 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/at-ishikawa/go-shell/internal/config"
-
 	"github.com/at-ishikawa/go-shell/internal/completion"
 )
 
 type FilePlugin struct {
-	completionUi        *completion.Fzf
-	historyCommandStats HistoryCommandStats
-	homeDir             string
+	completionUi *completion.Fzf
+	homeDir      string
 }
 
 var _ Plugin = (*FilePlugin)(nil)
 
-func NewFilePlugin(completionUi *completion.Fzf, commandHistory *config.History, homeDir string) Plugin {
+func NewFilePlugin(completionUi *completion.Fzf, homeDir string) Plugin {
 	return &FilePlugin{
-		completionUi:        completionUi,
-		historyCommandStats: getHistoryCommandStats(commandHistory.Get()),
-		homeDir:             homeDir,
+		completionUi: completionUi,
+		homeDir:      homeDir,
 	}
 }
 
@@ -32,7 +28,7 @@ func (f FilePlugin) Command() string {
 }
 
 func (f FilePlugin) Suggest(arg SuggestArg) ([]string, error) {
-	suggestedValuesFromHistory := f.historyCommandStats.getSuggestedValues(arg.Args, arg.CurrentArgToken)
+	suggestedValuesFromHistory := arg.GetSuggestedValues()
 
 	pathSeparator := string(os.PathSeparator)
 	query := arg.CurrentArgToken

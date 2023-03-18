@@ -29,6 +29,10 @@ func (g GitPlugin) Command() string {
 
 func (g GitPlugin) Suggest(arg plugin.SuggestArg) ([]string, error) {
 	args := arg.Args
+	if len(args) < 2 {
+		return arg.Suggest(g.completionUi)
+	}
+
 	switch args[1] {
 	case "add":
 		return g.suggestFiles()
@@ -40,11 +44,11 @@ func (g GitPlugin) Suggest(arg plugin.SuggestArg) ([]string, error) {
 	case "push":
 		if len(args) < 3 {
 			// todo suggest remote
-			return []string{}, nil
+			return arg.Suggest(g.completionUi)
 		}
 		return g.suggestLocalBranches()
 	}
-	return []string{}, nil
+	return arg.GetSuggestedValues(), nil
 }
 
 func (g GitPlugin) suggestFiles() ([]string, error) {
