@@ -48,7 +48,7 @@ func (g GitPlugin) Suggest(arg plugin.SuggestArg) ([]string, error) {
 		}
 		return g.suggestLocalBranches()
 	}
-	return arg.GetSuggestedValues(), nil
+	return arg.Suggest(g.completionUi)
 }
 
 func (g GitPlugin) suggestFiles() ([]string, error) {
