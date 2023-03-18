@@ -9,19 +9,19 @@ import (
 )
 
 func main() {
+	var commandLineOptions shell.Options
+
 	rootCommand := &cobra.Command{
-		Run: func(cmd *cobra.Command, args []string) {
-			s, err := shell.NewShell(os.Stdin, os.Stdout)
+		RunE: func(cmd *cobra.Command, args []string) error {
+			s, err := shell.NewShell(os.Stdin, os.Stdout, commandLineOptions)
 			if err != nil {
-				fmt.Println(err)
-				return
+				return err
 			}
-			if err := s.Run(); err != nil {
-				fmt.Println(err)
-			}
+			return s.Run()
 		},
 	}
 
+	rootCommand.PersistentFlags().BoolVarP(&commandLineOptions.IsDebug, "debug", "", false, "Enable to a debug mode")
 	if err := rootCommand.Execute(); err != nil {
 		fmt.Println(err)
 		os.Exit(1)

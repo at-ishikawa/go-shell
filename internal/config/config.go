@@ -23,6 +23,10 @@ func NewConfig(homeDir string) (*Config, error) {
 	return c, nil
 }
 
+func (c Config) GetPath() string {
+	return c.dir
+}
+
 func (c Config) readFile(filename string) ([]byte, error) {
 	filePath := c.dir + "/" + filename
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {

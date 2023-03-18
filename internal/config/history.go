@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"go.uber.org/zap"
 )
 
 type HistoryItem struct {
@@ -72,16 +74,24 @@ func (h History) StartWith(inputCommand string, status int) string {
 	return ""
 }
 
-func (h *History) Sync(command string, status int) chan struct{} {
+func (h *History) Sync(
+	command string,
+	status int,
+	logger *zap.Logger,
+) chan struct{} {
 	ch := make(chan struct{})
 	go func() {
 		if err := h.LoadFile(); err != nil {
-			fmt.Println(err)
+			logger.Error("Failed to load a history file",
+				zap.Error(err),
+			)
 			return
 		}
 		h.Add(command, status)
 		if err := h.saveFile(); err != nil {
-			fmt.Println(err)
+			logger.Error("Failed to save a history file",
+				zap.Error(err),
+			)
 			return
 		}
 		ch <- struct{}{}

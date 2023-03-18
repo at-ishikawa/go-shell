@@ -7,10 +7,12 @@ import (
 	"os/signal"
 	"strings"
 	"syscall"
+	"time"
 	"unicode"
 	"unicode/utf8"
 
 	"github.com/at-ishikawa/go-shell/internal/config"
+	"go.uber.org/zap"
 
 	"github.com/at-ishikawa/go-shell/internal/plugin/git"
 
@@ -21,6 +23,7 @@ import (
 )
 
 type Shell struct {
+	logger           *zap.Logger
 	history          config.History
 	in               input
 	out              output
@@ -32,13 +35,11 @@ type Shell struct {
 	candidateCommand string
 }
 
-func NewShell(inFile *os.File, outFile *os.File) (Shell, error) {
-	in, err := initInput(inFile)
-	if err != nil {
-		return Shell{}, err
-	}
-	out := initOutput(outFile)
+type Options struct {
+	IsDebug bool
+}
 
+func NewShell(inFile *os.File, outFile *os.File, options Options) (Shell, error) {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		return Shell{}, err
@@ -47,6 +48,33 @@ func NewShell(inFile *os.File, outFile *os.File) (Shell, error) {
 	if err != nil {
 		return Shell{}, err
 	}
+	logger, err := func(isDebug bool) (*zap.Logger, error) {
+		tempDir := os.TempDir()
+		loggerPath := fmt.Sprintf("%sgo-shell-%s.log", tempDir, time.Now().Format("2006-01-02"))
+		loggerConfig := zap.NewProductionConfig()
+		if isDebug {
+			loggerConfig.Level = zap.NewAtomicLevelAt(zap.DebugLevel)
+		}
+		loggerConfig.OutputPaths = []string{
+			loggerPath,
+		}
+		loggerConfig.ErrorOutputPaths = []string{
+			loggerPath,
+		}
+
+		fmt.Printf("You can see a log on %s\n", loggerPath)
+		return loggerConfig.Build()
+	}(options.IsDebug)
+	if err != nil {
+		return Shell{}, err
+	}
+
+	in, err := initInput(inFile)
+	if err != nil {
+		return Shell{}, err
+	}
+	out := initOutput(outFile)
+
 	commandHistory := config.NewHistory(conf)
 	if err := commandHistory.LoadFile(); err != nil {
 		return Shell{}, fmt.Errorf("failed to load a history file: %w", err)
@@ -63,6 +91,7 @@ func NewShell(inFile *os.File, outFile *os.File) (Shell, error) {
 	}
 
 	return Shell{
+		logger:        logger,
 		history:       commandHistory,
 		in:            in,
 		out:           out,
@@ -76,7 +105,16 @@ func NewShell(inFile *os.File, outFile *os.File) (Shell, error) {
 
 // https://hackernoon.com/today-i-learned-making-a-simple-interactive-shell-application-in-golang-aa83adcb266a
 func (s Shell) Run() error {
-	defer s.in.finalize()
+	defer func() {
+		if err := s.logger.Sync(); err != nil {
+			s.logger.Error("Failed to zap.Logger.sync", zap.Error(err))
+		}
+	}()
+	defer func() {
+		if err := s.in.finalize(); err != nil {
+			s.logger.Error("Failed to finalize a terminal input", zap.Error(err))
+		}
+	}()
 	if err := s.in.makeRaw(); err != nil {
 		return err
 	}
@@ -126,7 +164,7 @@ func (s Shell) Run() error {
 			<-historyChannel
 		}
 		// In order to avoid storing commands with syntax error, do not store commands failed
-		historyChannel = s.history.Sync(inputCommand, exitCode)
+		historyChannel = s.history.Sync(inputCommand, exitCode, s.logger)
 	}
 	if historyChannel != nil {
 		<-historyChannel
@@ -411,6 +449,8 @@ func (s Shell) getInputCommand() (string, error) {
 	inputCommand := ""
 	for {
 		keyEvent, err := s.in.Read()
+		s.logger.Debug("type", zap.ByteString("bytes", keyEvent.Bytes))
+
 		if err == io.EOF {
 			s.out.writeLine(inputCommand, "")
 			s.out.newLine()
