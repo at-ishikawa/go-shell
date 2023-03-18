@@ -1,10 +1,26 @@
 package keyboard
 
-type Key int
+type Code int
+
+func (c Code) Bytes() []byte {
+	value := c
+	var bytes []byte
+	for value > 0 {
+		bytes = append(bytes, byte(value)&0xff)
+		value = value >> 8
+	}
+
+	// sort reverse
+	for i, j := 0, len(bytes)-1; i < j; i, j = i+1, j-1 {
+		bytes[i], bytes[j] = bytes[j], bytes[i]
+	}
+	return bytes
+}
 
 type KeyEvent struct {
-	Key  Key
-	Rune rune
+	Bytes   []byte
+	KeyCode Code
+	Rune    rune
 
 	IsEscapePressed  bool
 	IsControlPressed bool
@@ -12,7 +28,7 @@ type KeyEvent struct {
 
 // https://pkg.go.dev/gobot.io/x/gobot/platforms/keyboard
 const (
-	Tilde = iota + 96
+	Tilde Code = iota + 96
 	A
 	B
 	C
@@ -41,30 +57,28 @@ const (
 	Z
 )
 
-// https://pkg.go.dev/gobot.io/x/gobot/platforms/keyboard#pkg-constants
-const (
-	// Escape + Left Square Brancket + Capital A
-	ArrowUp    = 0x1b5b41
-	ArrowDown  = 0x1b5b42
-	ArrowRight = 0x1b5b43
-	ArrowLeft  = 0x1b5b44
-)
-
 // https://github.com/c-bata/go-prompt/blob/82a912274504477990ecf7c852eebb7c85291772/input.go#L34
 const (
-	controlA          = 0x01
-	ControlC          = 0x03
-	controlZ          = 0x1a
-	Escape            = 0x1b
-	LeftSquareBracket = 0x5b
-
-	// Enter key is the same as Control B
-	Enter     = 0x0D
-	Tab       = 0x9
-	Backspace = 0x7f
+	controlA Code = 0x1
+	ControlC Code = 0x3
+	controlZ Code = 0x1a
+	Escape   Code = 0x1b
 )
 
-var specialKeys = []Key{
+const (
+	// https://pkg.go.dev/gobot.io/x/gobot/platforms/keyboard#pkg-constants
+	// Escape + Left Square Brancket + Capital A
+	ArrowUp    Code = 0x1b5b41
+	ArrowDown       = 0x1b5b42
+	ArrowRight      = 0x1b5b43
+	ArrowLeft       = 0x1b5b44
+	// Enter key is the same as Control B
+	Enter     Code = 0xD
+	Tab       Code = 0x9
+	Backspace Code = 0x7f
+)
+
+var specialKeys = []Code{
 	Enter,
 	Tab,
 	Backspace,
@@ -76,32 +90,35 @@ var specialKeys = []Key{
 }
 
 func GetKeyEvent(bytes []byte) KeyEvent {
-	keyEvent := KeyEvent{}
+	keyEvent := KeyEvent{
+		Bytes: bytes,
+	}
 	if len(bytes) == 0 {
 		return keyEvent
 	}
 
-	keyBytes := Key(0)
+	keyBytes := Code(0)
 	for _, b := range bytes {
-		keyBytes = (keyBytes << 8) | Key(b)
+		keyBytes = (keyBytes << 8) | Code(b)
 	}
 
 	for _, specialKey := range specialKeys {
 		if keyBytes == specialKey {
-			keyEvent.Key = specialKey
+			keyEvent.KeyCode = specialKey
 			return keyEvent
 		}
 	}
 
-	if bytes[0] == Escape {
+	if Code(bytes[0]) == Escape {
 		keyEvent.IsEscapePressed = true
 		bytes = bytes[1:]
 	}
-	if bytes[0] >= controlA && bytes[0] <= controlZ {
-		keyEvent.Key = Key(bytes[0] - controlA + A)
+	keyCode := Code(bytes[0])
+	if keyCode >= controlA && keyCode <= controlZ {
+		keyEvent.KeyCode = keyCode - controlA + A
 		keyEvent.IsControlPressed = true
 	} else {
-		keyEvent.Key = Key(bytes[0])
+		keyEvent.KeyCode = keyCode
 		keyEvent.Rune = rune(bytes[0])
 	}
 

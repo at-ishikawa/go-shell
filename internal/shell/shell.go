@@ -233,7 +233,7 @@ func (s *Shell) showNextCommandFromHistory(inputCommand string) string {
 
 func (s *Shell) handleShortcutKey(inputCommand string, keyEvent keyboard.KeyEvent) (string, error) {
 	if keyEvent.IsEscapePressed {
-		switch keyEvent.Key {
+		switch keyEvent.KeyCode {
 		case keyboard.B:
 			if -s.out.cursor >= len(inputCommand) {
 				break
@@ -267,7 +267,7 @@ func (s *Shell) handleShortcutKey(inputCommand string, keyEvent keyboard.KeyEven
 		return inputCommand, nil
 	}
 	if keyEvent.IsControlPressed {
-		switch keyEvent.Key {
+		switch keyEvent.KeyCode {
 		case keyboard.D:
 			if len(inputCommand) == 0 {
 				break
@@ -335,7 +335,7 @@ func (s *Shell) handleShortcutKey(inputCommand string, keyEvent keyboard.KeyEven
 		return inputCommand, nil
 	}
 
-	switch keyEvent.Key {
+	switch keyEvent.KeyCode {
 	case keyboard.Backspace:
 		if len(inputCommand) == 0 {
 			break
@@ -419,12 +419,12 @@ func (s Shell) getInputCommand() (string, error) {
 			s.out.writeLine(inputCommand, "")
 			return "", err
 		}
-		if keyEvent.Key == keyboard.Enter {
+		if keyEvent.KeyCode == keyboard.Enter {
 			s.out.writeLine(inputCommand, "")
 			s.out.newLine()
 			break
 		}
-		if keyEvent.IsControlPressed && keyEvent.Key == keyboard.C {
+		if keyEvent.IsControlPressed && keyEvent.KeyCode == keyboard.C {
 			s.out.writeLine(inputCommand, "")
 			s.out.newLine()
 			inputCommand = ""
