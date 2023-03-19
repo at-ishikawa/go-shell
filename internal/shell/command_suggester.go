@@ -18,13 +18,12 @@ type commandSuggester struct {
 }
 
 func newCommandSuggester(history *config.History, homeDir string) (commandSuggester, error) {
-	completionUi := completion.NewFzf()
 	tcellCompletionUi, err := completion.NewTcellCompletion()
 	if err != nil {
 		return commandSuggester{}, err
 	}
 	pluginList := []plugin.Plugin{
-		kubectl.NewKubeCtlPlugin(completionUi),
+		kubectl.NewKubeCtlPlugin(tcellCompletionUi),
 		git.NewGitPlugin(tcellCompletionUi),
 	}
 	plugins := make(map[string]plugin.Plugin, len(pluginList))
@@ -35,8 +34,8 @@ func newCommandSuggester(history *config.History, homeDir string) (commandSugges
 	return commandSuggester{
 		history:       history,
 		plugins:       plugins,
-		defaultPlugin: plugin.NewFilePlugin(completionUi, homeDir),
-		historyPlugin: plugin.NewHistoryPlugin(completionUi),
+		defaultPlugin: plugin.NewFilePlugin(tcellCompletionUi, homeDir),
+		historyPlugin: plugin.NewHistoryPlugin(tcellCompletionUi),
 	}, nil
 }
 

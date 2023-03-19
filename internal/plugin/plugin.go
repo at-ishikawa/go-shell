@@ -18,8 +18,10 @@ type SuggestArg struct {
 	History         *config.History
 }
 
-func (arg SuggestArg) Suggest(completionUi *completion.Fzf) ([]string, error) {
-	result, err := completionUi.Complete(arg.GetSuggestedValues(), completion.FzfOption{})
+func (arg SuggestArg) Suggest(completionUi completion.Completion) ([]string, error) {
+	result, err := completionUi.Complete(arg.GetSuggestedValues(), completion.CompleteOptions{
+		InitialQuery: arg.CurrentArgToken,
+	})
 	return []string{result}, err
 }
 

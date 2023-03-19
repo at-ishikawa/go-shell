@@ -8,12 +8,12 @@ import (
 )
 
 type HistoryPlugin struct {
-	completionUi *completion.Fzf
+	completionUi completion.Completion
 }
 
 var _ Plugin = (*HistoryPlugin)(nil)
 
-func NewHistoryPlugin(completionUi *completion.Fzf) *HistoryPlugin {
+func NewHistoryPlugin(completionUi completion.Completion) *HistoryPlugin {
 	return &HistoryPlugin{
 		completionUi: completionUi,
 	}
@@ -41,9 +41,9 @@ func (h HistoryPlugin) Suggest(arg SuggestArg) ([]string, error) {
 	// todo: show a preview like
 	//     item := s.history.list[index]
 	//     return fmt.Sprintf("status: %d\nRunning at: %s", item.Status, item.RunAt.Format(time.RFC3339))
-	result, err := h.completionUi.Complete(lines, completion.FzfOption{
-		HeaderLines: 1,
-		Query:       query,
+	result, err := h.completionUi.Complete(lines[1:], completion.CompleteOptions{
+		Header:       lines[0],
+		InitialQuery: query,
 	})
 	if err != nil {
 		return []string{""}, err

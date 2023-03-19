@@ -30,8 +30,7 @@ func (g GitPlugin) Command() string {
 func (g GitPlugin) Suggest(arg plugin.SuggestArg) ([]string, error) {
 	args := arg.Args
 	if len(args) < 2 {
-		return []string{}, nil
-		// return arg.Suggest(g.completionUi)
+		return arg.Suggest(g.completionUi)
 	}
 
 	switch args[1] {
@@ -45,13 +44,11 @@ func (g GitPlugin) Suggest(arg plugin.SuggestArg) ([]string, error) {
 	case "push":
 		if len(args) < 3 {
 			// todo suggest remote
-			return []string{}, nil
-			// return arg.Suggest(g.completionUi)
+			return arg.Suggest(g.completionUi)
 		}
 		return g.suggestLocalBranches()
 	}
-	return []string{}, nil
-	// return arg.Suggest(g.completionUi)
+	return arg.Suggest(g.completionUi)
 }
 
 func (g GitPlugin) suggestFiles() ([]string, error) {
@@ -62,9 +59,17 @@ func (g GitPlugin) suggestFiles() ([]string, error) {
 		return []string{}, fmt.Errorf("failed to run a git status: %w", err)
 	}
 
-	lines, err := g.completionUi.CompleteMulti(strings.Split(string(output), "\n"), completion.CompleteOptions{
-		IsAnsiColor:    true,
-		PreviewCommand: "git diff --color HEAD {1}",
+	files := strings.Split(string(output), "\n")
+	lines, err := g.completionUi.CompleteMulti(files, completion.CompleteOptions{
+		IsAnsiColor: true,
+		PreviewCommand: func(row int) (string, error) {
+			file := files[row]
+			output, err := exec.Command("git", "diff", "--color", "HEAD", file).Output()
+			if err != nil {
+				return string(output), err
+			}
+			return string(output), nil
+		},
 	})
 	if err != nil {
 		return []string{}, err
@@ -83,8 +88,15 @@ func (g GitPlugin) suggestLocalBranches() ([]string, error) {
 	}
 	formattedBranches := formatLines(output, 0, 50, 100)
 	lines, err := g.completionUi.CompleteMulti(formattedBranches, completion.CompleteOptions{
-		IsAnsiColor:    true,
-		PreviewCommand: "git log {1}",
+		IsAnsiColor: true,
+		PreviewCommand: func(row int) (string, error) {
+			branch := formattedBranches[row]
+			output, err := exec.Command("git", "log", branch).Output()
+			if err != nil {
+				return string(output), err
+			}
+			return string(output), nil
+		},
 	})
 	if err != nil {
 		return []string{}, err

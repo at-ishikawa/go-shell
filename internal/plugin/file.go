@@ -10,13 +10,13 @@ import (
 )
 
 type FilePlugin struct {
-	completionUi *completion.Fzf
+	completionUi completion.Completion
 	homeDir      string
 }
 
 var _ Plugin = (*FilePlugin)(nil)
 
-func NewFilePlugin(completionUi *completion.Fzf, homeDir string) Plugin {
+func NewFilePlugin(completionUi completion.Completion, homeDir string) Plugin {
 	return &FilePlugin{
 		completionUi: completionUi,
 		homeDir:      homeDir,
@@ -62,7 +62,7 @@ func (f FilePlugin) Suggest(arg SuggestArg) ([]string, error) {
 		suggestValues = append(suggestValues, filePath)
 	}
 
-	return f.completionUi.CompleteMulti(suggestValues, completion.FzfOption{
-		Query: query,
+	return f.completionUi.CompleteMulti(suggestValues, completion.CompleteOptions{
+		InitialQuery: query,
 	})
 }

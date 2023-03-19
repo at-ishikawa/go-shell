@@ -18,10 +18,10 @@ const Cli = "kubectl"
 var _ plugin.Plugin = (*KubeCtlPlugin)(nil)
 
 type KubeCtlPlugin struct {
-	completionUi *completion.Fzf
+	completionUi completion.Completion
 }
 
-func NewKubeCtlPlugin(completionUi *completion.Fzf) plugin.Plugin {
+func NewKubeCtlPlugin(completionUi completion.Completion) plugin.Plugin {
 	return &KubeCtlPlugin{
 		completionUi: completionUi,
 	}
@@ -137,7 +137,7 @@ func (k *KubeCtlPlugin) Suggest(arg plugin.SuggestArg) ([]string, error) {
 		return []string{}, err
 	}
 
-	return k.searchByFzf(kubeCtlGetResult, namespace, resource, isMultipleResources)
+	return k.searchByCompletion(kubeCtlGetResult, namespace, resource, isMultipleResources)
 }
 
 func (k KubeCtlPlugin) searchByFzf(kubeCtlGetResult []byte,
@@ -165,9 +165,73 @@ func (k KubeCtlPlugin) searchByFzf(kubeCtlGetResult []byte,
 		fzfOptions.HeaderLines = 1
 	}
 
-	rows, err := k.completionUi.CompleteMulti(strings.Split(string(kubeCtlGetResult), "\n"), fzfOptions)
+	/*
+		rows, err := k.completionUi.CompleteMulti(strings.Split(string(kubeCtlGetResult), "\n"), fzfOptions)
+		if err != nil {
+			return []string{}, err
+		}
+
+		names := make([]string, len(rows))
+		for i, row := range rows {
+			columns := strings.Fields(row)
+			names[i] = strings.TrimSpace(columns[0])
+		}
+		return names, nil
+	*/
+	return []string{}, nil
+}
+
+func (k KubeCtlPlugin) searchByCompletion(kubeCtlGetResult []byte,
+	namespace string,
+	resource string,
+	isMultipleResources bool) ([]string, error) {
+	var previewCommand string
+	var header string
+	kubectlResult := strings.Split(string(kubeCtlGetResult), "\n")
+
+	if !isMultipleResources {
+		header = kubectlResult[0]
+		kubectlResult = kubectlResult[1:]
+	}
+	if namespace != "" {
+		previewCommand = previewCommand + " --namespace " + namespace
+	}
+
+	completeOptions := completion.CompleteOptions{
+		Header: header,
+		PreviewCommand: func(row int) (string, error) {
+			name := strings.Fields(kubectlResult[row])[0]
+			var previewCommandArgs []string
+			if isMultipleResources {
+				previewCommandArgs = []string{
+					"describe",
+					name,
+				}
+			} else {
+				previewCommandArgs = []string{
+					"describe",
+					resource,
+					name,
+				}
+			}
+
+			output, err := exec.Command(Cli, previewCommandArgs...).Output()
+			if err != nil {
+				return "", err
+			}
+			if len(output) == 0 {
+				return "", err
+			}
+			return string(output), err
+		},
+	}
+
+	rows, err := k.completionUi.CompleteMulti(kubectlResult, completeOptions)
 	if err != nil {
 		return []string{}, err
+	}
+	if len(rows) == 0 {
+		return []string{}, nil
 	}
 
 	names := make([]string, len(rows))
