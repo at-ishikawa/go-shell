@@ -187,7 +187,7 @@ func (k KubeCtlPlugin) searchByCompletion(kubeCtlGetResult []byte,
 	isMultipleResources bool) ([]string, error) {
 	var previewCommand string
 	var header string
-	kubectlResult := strings.Split(string(kubeCtlGetResult), "\n")
+	kubectlResult := strings.Split(strings.TrimSpace(string(kubeCtlGetResult)), "\n")
 
 	if !isMultipleResources {
 		header = kubectlResult[0]

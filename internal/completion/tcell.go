@@ -16,8 +16,10 @@ type Completion interface {
 	CompleteMulti(rows []string, options CompleteOptions) ([]string, error)
 }
 
+type PreviewCommandType func(row int) (string, error)
+
 type CompleteOptions struct {
-	PreviewCommand func(row int) (string, error)
+	PreviewCommand PreviewCommandType
 	Header         string
 	InitialQuery   string
 	IsAnsiColor    bool
@@ -31,6 +33,19 @@ type finderRow struct {
 }
 
 type finderRowsType []finderRow
+
+func (vr *finderRowsType) filterByQuery(query string) finderRowsType {
+	result := finderRowsType{}
+	for i, row := range *vr {
+		if query != "" && !strings.Contains(row.value, query) {
+			(*vr)[i].visible = false
+			continue
+		}
+		(*vr)[i].visible = true
+		result = append(result, row)
+	}
+	return result
+}
 
 func (vr finderRowsType) Len() int {
 	count := 0
@@ -101,6 +116,110 @@ func (complete TcellCompletion) Complete(rows []string, options CompleteOptions)
 	return result[0], nil
 }
 
+func emitStr(s tcell.Screen, x, y int, style tcell.Style, str string) int {
+	for _, char := range str {
+		var combinings []rune
+		runeWidth := runewidth.RuneWidth(char)
+		if runeWidth == 0 {
+			// complete.logger.Debug("runeWidth = 0",
+			// 	zap.String("char", string(char)))
+
+			// \t
+			if char == '\t' {
+				runeWidth = 4
+			} else {
+				// combinings = []rune{char}
+				// char = ' '
+				runeWidth = 1
+			}
+		}
+		s.SetContent(x, y, char, combinings, style)
+		x += runeWidth
+	}
+	return x
+}
+
+func (complete TcellCompletion) showPreview(
+	screen tcell.Screen,
+	previewCommand PreviewCommandType,
+	visibleRows finderRowsType,
+	cursorRow int,
+) {
+	if previewCommand == nil {
+		return
+	}
+	if visibleRows.Len() == 0 {
+		return
+	}
+	if cursorRow >= visibleRows.Len() {
+		return
+	}
+	if cursorRow < 0 {
+		return
+	}
+
+	_, height := screen.Size()
+	previewResult, err := previewCommand(visibleRows[cursorRow].index)
+	if err != nil {
+		emitStr(screen, 2, height/2, tcell.StyleDefault, err.Error())
+		return
+	}
+
+	lines := strings.Split(previewResult, "\n")
+	for i, line := range lines {
+		y := height/2 + i
+		if y > height {
+			break
+		}
+
+		ansiStrs := ansi.ParseString(line)
+		x := 2
+		for _, ansiStr := range ansiStrs {
+			style := ansiString(ansiStr).ToTCellStyle()
+			x = emitStr(screen, x, y, style, ansiStr.String)
+		}
+	}
+	screen.Show()
+}
+
+func (complete TcellCompletion) showVisibleRows(
+	screen tcell.Screen,
+	visibleRows finderRowsType,
+	cursorRow int,
+	query string,
+	header string,
+) {
+	width, _ := screen.Size()
+	prompt := fmt.Sprintf("> %s", query)
+	currentX := emitStr(screen, 0, 0, tcell.StyleDefault, prompt)
+	screen.ShowCursor(currentX, 0)
+
+	if len(header) > 0 {
+		emitStr(screen, 2, 1, tcell.StyleDefault, header)
+	} else {
+		emitStr(screen, 0, 1, tcell.StyleDefault, strings.Repeat("-", width))
+	}
+	showY := 2
+
+	for rowIndex := 0; rowIndex < visibleRows.Len(); rowIndex++ {
+		row := visibleRows[rowIndex]
+
+		style := tcell.StyleDefault
+		if cursorRow == rowIndex {
+			style = tcell.StyleDefault.Foreground(tcell.ColorCadetBlue.TrueColor()).Background(tcell.ColorWhite)
+		}
+		if row.selected {
+			screen.SetCell(0, showY, style, '>', ' ')
+		}
+
+		emitStr(screen, 2, showY, style, fmt.Sprintf("%s", row.value))
+		showY++
+	}
+
+	screen.Show()
+
+}
+
 func (complete TcellCompletion) complete(rows []string, options CompleteOptions, isMultiSelectMode bool) ([]string, error) {
 	header := options.Header
 	screen, err := tcell.NewScreen()
@@ -117,29 +236,6 @@ func (complete TcellCompletion) complete(rows []string, options CompleteOptions,
 	cursorRow := 0
 	query := options.InitialQuery
 
-	emitStr := func(s tcell.Screen, x, y int, style tcell.Style, str string) int {
-		for _, char := range str {
-			var combinings []rune
-			runeWidth := runewidth.RuneWidth(char)
-			if runeWidth == 0 {
-				complete.logger.Debug("runeWidth = 0",
-					zap.String("char", string(char)))
-
-				// \t
-				if char == '\t' {
-					runeWidth = 4
-				} else {
-					// combinings = []rune{char}
-					// char = ' '
-					runeWidth = 1
-				}
-			}
-			s.SetContent(x, y, char, combinings, style)
-			x += runeWidth
-		}
-		return x
-	}
-
 	allRows := make(finderRowsType, 0, len(rows))
 	for index, r := range rows {
 		allRows = append(allRows, finderRow{
@@ -149,80 +245,13 @@ func (complete TcellCompletion) complete(rows []string, options CompleteOptions,
 		})
 	}
 	visibleRows := allRows
-
-	showPreview := func() {
-		if options.PreviewCommand == nil {
-			return
-		}
-		if cursorRow-1 > visibleRows.Len() {
-			return
-		}
-		if cursorRow < 0 {
-			return
-		}
-
-		_, height := screen.Size()
-		previewResult, err := options.PreviewCommand(visibleRows[cursorRow].index)
-		if err != nil {
-			emitStr(screen, 2, height/2, tcell.StyleDefault, err.Error())
-			return
-		}
-
-		lines := strings.Split(previewResult, "\n")
-		for i, line := range lines {
-			y := height/2 + i
-			if y > height {
-				break
-			}
-
-			ansiStrs := ansi.ParseString(line)
-			complete.logger.Debug("ansi line",
-				zap.String("line", line),
-				zap.Any("ansi", ansiStrs),
-			)
-
-			x := 2
-			for _, ansiStr := range ansiStrs {
-				style := ansiString(ansiStr).ToTCellStyle()
-				x = emitStr(screen, x, y, style, ansiStr.String)
-			}
-		}
-		screen.Show()
-	}
-	show := func() {
-		width, _ := screen.Size()
-		prompt := fmt.Sprintf("> %s", query)
-		currentX := emitStr(screen, 0, 0, tcell.StyleDefault, prompt)
-		screen.ShowCursor(currentX, 0)
-
-		if len(header) > 0 {
-			emitStr(screen, 2, 1, tcell.StyleDefault, header)
-		} else {
-			emitStr(screen, 0, 1, tcell.StyleDefault, strings.Repeat("-", width))
-		}
-		showY := 2
-
-		for rowIndex := 0; rowIndex < visibleRows.Len(); rowIndex++ {
-			row := visibleRows[rowIndex]
-
-			style := tcell.StyleDefault
-			if cursorRow == rowIndex {
-				style = tcell.StyleDefault.Foreground(tcell.ColorCadetBlue.TrueColor()).Background(tcell.ColorWhite)
-			}
-			if row.selected {
-				screen.SetCell(0, showY, style, '>', ' ')
-			}
-
-			emitStr(screen, 2, showY, style, fmt.Sprintf("%s", row.value))
-			showY++
-		}
-
-		screen.Show()
+	if query != "" {
+		visibleRows = allRows.filterByQuery(query)
 	}
 
 	eg := errgroup.Group{}
-	show()
-	showPreview()
+	complete.showVisibleRows(screen, visibleRows, cursorRow, query, header)
+	complete.showPreview(screen, options.PreviewCommand, visibleRows, cursorRow)
 loop:
 	for {
 		switch event := screen.PollEvent().(type) {
@@ -237,7 +266,7 @@ loop:
 				index := visibleRows[cursorRow].index
 				allRows[index].selected = !allRows[index].selected
 				visibleRows[cursorRow].selected = allRows[index].selected
-				if cursorRow < visibleRows.Len()-2 {
+				if cursorRow < visibleRows.Len()-1 {
 					cursorRow++
 				}
 			case tcell.KeyCtrlC:
@@ -254,7 +283,7 @@ loop:
 					cursorRow--
 				}
 			case tcell.KeyCtrlN:
-				if cursorRow < visibleRows.Len()-2 {
+				if cursorRow < visibleRows.Len()-1 {
 					cursorRow++
 				}
 			case tcell.KeyBackspace, tcell.KeyBackspace2, tcell.KeyRune:
@@ -267,25 +296,26 @@ loop:
 					ch := event.Rune()
 					query = query + string(ch)
 				}
+				visibleRows = allRows.filterByQuery(query)
+				complete.logger.Debug("query was changed",
+					zap.String("path", "internal/completion/tcell"),
+					zap.String("query", query),
+					zap.Any("allRows", allRows),
+					zap.Any("visibleRows", visibleRows))
 
-				visibleRows = finderRowsType{}
-				for i, row := range allRows {
-					if query != "" && !strings.Contains(row.value, query) {
-						allRows[i].visible = false
-						continue
-					}
-					allRows[i].visible = true
-					visibleRows = append(visibleRows, row)
-				}
 				if cursorRow > visibleRows.Len() {
 					cursorRow = visibleRows.Len() - 1
 				}
 			}
+
+			cursorRow := cursorRow
+			visibleRows := visibleRows
+			query := query
 			eg.Go(func() error {
 				screen.Sync()
 				screen.Clear()
-				show()
-				showPreview()
+				complete.showVisibleRows(screen, visibleRows, cursorRow, query, header)
+				complete.showPreview(screen, options.PreviewCommand, visibleRows, cursorRow)
 				return nil
 			})
 		}
