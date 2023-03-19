@@ -4,10 +4,11 @@ import (
 	"fmt"
 	"strings"
 
-	"golang.org/x/sync/errgroup"
-
+	"github.com/at-ishikawa/go-shell/internal/ansi"
 	"github.com/gdamore/tcell/v2"
 	"github.com/mattn/go-runewidth"
+	"go.uber.org/zap"
+	"golang.org/x/sync/errgroup"
 )
 
 type Completion interface {
@@ -20,30 +21,6 @@ type CompleteOptions struct {
 	Header         string
 	InitialQuery   string
 	IsAnsiColor    bool
-}
-
-type TcellCompletion struct {
-}
-
-var _ Completion = (*TcellCompletion)(nil)
-
-func NewTcellCompletion() (*TcellCompletion, error) {
-	return &TcellCompletion{}, nil
-}
-
-func (complete *TcellCompletion) CompleteMulti(rows []string, options CompleteOptions) ([]string, error) {
-	return complete.complete(rows, options, true)
-}
-
-func (complete TcellCompletion) Complete(rows []string, options CompleteOptions) (string, error) {
-	result, err := complete.complete(rows, options, false)
-	if err != nil {
-		return "", err
-	}
-	if len(result) == 0 {
-		return "", nil
-	}
-	return result[0], nil
 }
 
 type finderRow struct {
@@ -63,6 +40,65 @@ func (vr finderRowsType) Len() int {
 		}
 	}
 	return count
+}
+
+type ansiString ansi.AnsiString
+
+func (as ansiString) ToTCellStyle() tcell.Style {
+	style := tcell.StyleDefault
+	if as.Style == ansi.StyleBold {
+		style = style.Bold(true)
+	}
+	if as.Style == ansi.StyleUnderline {
+		style = style.Underline(true)
+	}
+
+	colorMaps := map[ansi.Color]tcell.Color{
+		ansi.ColorBlack:  tcell.ColorBlack,
+		ansi.ColorRed:    tcell.ColorRed,
+		ansi.ColorGreen:  tcell.ColorGreen,
+		ansi.ColorYellow: tcell.ColorYellow,
+		ansi.ColorBlue:   tcell.ColorBlue,
+		ansi.ColorPurple: tcell.ColorPurple,
+		// too dark or too light for a cyan
+		ansi.ColorCyan:  tcell.ColorLightSkyBlue,
+		ansi.ColorWhite: tcell.ColorWhite,
+	}
+	if color, ok := colorMaps[as.ForegroundColor]; ok {
+		style = style.Foreground(color)
+	}
+	if color, ok := colorMaps[as.BackgroundColor]; ok {
+		style = style.Background(color)
+	}
+
+	return style
+}
+
+type TcellCompletion struct {
+	logger *zap.Logger
+}
+
+var _ Completion = (*TcellCompletion)(nil)
+
+func NewTcellCompletion() (*TcellCompletion, error) {
+	return &TcellCompletion{
+		logger: zap.L(),
+	}, nil
+}
+
+func (complete *TcellCompletion) CompleteMulti(rows []string, options CompleteOptions) ([]string, error) {
+	return complete.complete(rows, options, true)
+}
+
+func (complete TcellCompletion) Complete(rows []string, options CompleteOptions) (string, error) {
+	result, err := complete.complete(rows, options, false)
+	if err != nil {
+		return "", err
+	}
+	if len(result) == 0 {
+		return "", nil
+	}
+	return result[0], nil
 }
 
 func (complete TcellCompletion) complete(rows []string, options CompleteOptions, isMultiSelectMode bool) ([]string, error) {
@@ -85,14 +121,19 @@ func (complete TcellCompletion) complete(rows []string, options CompleteOptions,
 		for _, char := range str {
 			var combinings []rune
 			runeWidth := runewidth.RuneWidth(char)
-			/*
-				// tab key
-				if runeWidth == 0 {
-					combinings = []rune{char}
-					char = ' '
+			if runeWidth == 0 {
+				complete.logger.Debug("runeWidth = 0",
+					zap.String("char", string(char)))
+
+				// \t
+				if char == '\t' {
+					runeWidth = 4
+				} else {
+					// combinings = []rune{char}
+					// char = ' '
 					runeWidth = 1
 				}
-			*/
+			}
 			s.SetContent(x, y, char, combinings, style)
 			x += runeWidth
 		}
@@ -134,7 +175,17 @@ func (complete TcellCompletion) complete(rows []string, options CompleteOptions,
 				break
 			}
 
-			emitStr(screen, 2, y, tcell.StyleDefault, line)
+			ansiStrs := ansi.ParseString(line)
+			complete.logger.Debug("ansi line",
+				zap.String("line", line),
+				zap.Any("ansi", ansiStrs),
+			)
+
+			x := 2
+			for _, ansiStr := range ansiStrs {
+				style := ansiString(ansiStr).ToTCellStyle()
+				x = emitStr(screen, x, y, style, ansiStr.String)
+			}
 		}
 		screen.Show()
 	}

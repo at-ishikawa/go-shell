@@ -50,6 +50,7 @@ func NewShell(inFile *os.File, outFile *os.File, errorFile *os.File, options Opt
 	if err != nil {
 		return Shell{}, err
 	}
+	zap.ReplaceGlobals(logger)
 
 	commandHistory := config.NewHistory(conf)
 	if err := commandHistory.LoadFile(); err != nil {
