@@ -2,6 +2,7 @@ package plugin
 
 import (
 	"strings"
+	"time"
 
 	"github.com/at-ishikawa/go-shell/internal/config"
 )
@@ -143,6 +144,11 @@ func getHistoryCommandStats(historyList []config.HistoryItem) HistoryCommandStat
 	result := make(HistoryCommandStats)
 	for _, item := range historyList {
 		if item.Status != 0 {
+			continue
+		}
+
+		var zeroTime time.Time
+		if item.LastSucceededAt == zeroTime {
 			continue
 		}
 

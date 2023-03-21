@@ -44,6 +44,23 @@ func (h *History) Get() []HistoryItem {
 	return h.list
 }
 
+func (h *History) FilterByDirectory(directory string) []HistoryItem {
+	result := []HistoryItem{}
+Loop:
+	for _, item := range h.list {
+		for _, dir := range item.Directories {
+			if dir == directory {
+				result = append(result, item)
+				continue Loop
+			}
+		}
+	}
+	if len(result) == 0 {
+		return h.list
+	}
+	return result
+}
+
 func (h *History) LoadFile() error {
 	fileData, err := h.config.readFile(h.fileName)
 	if err != nil {

@@ -2,6 +2,7 @@ package plugin
 
 import (
 	"testing"
+	"time"
 
 	"github.com/at-ishikawa/go-shell/internal/config"
 
@@ -9,6 +10,8 @@ import (
 )
 
 func Test_getCommandStats(t *testing.T) {
+	succeededTime := time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)
+
 	testCases := []struct {
 		name        string
 		historyList []config.HistoryItem
@@ -18,17 +21,24 @@ func Test_getCommandStats(t *testing.T) {
 			name: "analyze command stats",
 			historyList: []config.HistoryItem{
 				{
-					Command: "command --global-option-no-value --global-option value subcommand -o --subcommand-option-with-value option_value",
+					Command:         "command --global-option-no-value --global-option value subcommand -o --subcommand-option-with-value option_value",
+					LastSucceededAt: succeededTime,
 				},
 				{
-					Command: "command subcommand option_value --global-option value",
+					Command:         "command subcommand option_value --global-option value",
+					LastSucceededAt: succeededTime,
 				},
 				{
-					Command: "ls",
+					Command:         "ls",
+					LastSucceededAt: succeededTime,
 				},
 				{
-					Command: "failed command",
-					Status:  1,
+					Command:         "failed command",
+					Status:          1,
+					LastSucceededAt: succeededTime,
+				},
+				{
+					Command: "never succeeded command",
 				},
 			},
 			want: HistoryCommandStats{
@@ -82,6 +92,7 @@ func Test_getCommandStats(t *testing.T) {
 				},
 			},
 		},
+
 		{
 			name: "no command history",
 			want: HistoryCommandStats{},

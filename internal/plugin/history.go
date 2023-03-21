@@ -2,6 +2,7 @@ package plugin
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/at-ishikawa/go-shell/internal/completion"
@@ -29,7 +30,12 @@ func (h HistoryPlugin) Suggest(arg SuggestArg) ([]string, error) {
 		// invoke by a short cut key
 		query = strings.Join(arg.Args, " ")
 	}
-	historyList := arg.History.Get()
+
+	currentDir, err := os.Getwd()
+	if err != nil {
+		return []string{}, err
+	}
+	historyList := arg.History.FilterByDirectory(currentDir)
 
 	lines := make([]string, 0, len(historyList)+1)
 	lines = append(lines, fmt.Sprintf("%-50s %20s", "command", "status"))

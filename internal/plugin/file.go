@@ -28,7 +28,10 @@ func (f FilePlugin) Command() string {
 }
 
 func (f FilePlugin) Suggest(arg SuggestArg) ([]string, error) {
-	suggestedValuesFromHistory := arg.GetSuggestedValues()
+	suggestedValuesFromHistory, err := arg.GetSuggestedValues()
+	if err != nil {
+		return []string{}, fmt.Errorf("arg.GetSuggestedValues failed: %w", err)
+	}
 
 	pathSeparator := string(os.PathSeparator)
 	query := arg.CurrentArgToken
