@@ -273,8 +273,10 @@ loop:
 				return []string{}, nil
 
 			case tcell.KeyEnter:
-				index := visibleRows[cursorRow].index
-				allRows[index].selected = true
+				if cursorRow < len(visibleRows) {
+					index := visibleRows[cursorRow].index
+					allRows[index].selected = true
+				}
 				break loop
 			case tcell.KeyCtrlP:
 				if cursorRow > 0 {
