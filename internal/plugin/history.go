@@ -2,26 +2,79 @@ package plugin
 
 import (
 	"fmt"
-	"os"
+	"reflect"
 	"strings"
+	"time"
+
+	"github.com/at-ishikawa/go-shell/internal/config"
+	"go.uber.org/zap"
 
 	"github.com/at-ishikawa/go-shell/internal/completion"
 )
 
 type HistoryPlugin struct {
 	completionUi completion.Completion
+	plugins      map[string]Plugin
+	logger       *zap.Logger
 }
 
 var _ Plugin = (*HistoryPlugin)(nil)
 
-func NewHistoryPlugin(completionUi completion.Completion) *HistoryPlugin {
+func NewHistoryPlugin(plugins map[string]Plugin, completionUi completion.Completion, logger *zap.Logger) *HistoryPlugin {
 	return &HistoryPlugin{
+		plugins:      plugins,
 		completionUi: completionUi,
+		logger:       logger,
 	}
 }
 
 func (h HistoryPlugin) Command() string {
 	return ""
+}
+
+func (h HistoryPlugin) GetContext(_ string) (map[string]string, error) {
+	return nil, nil
+}
+
+func (h HistoryPlugin) filterHistoryList(historyList []config.HistoryItem, query string) []config.HistoryItem {
+	allContexts := map[string]map[string]string{}
+	for _, p := range h.plugins {
+		context, err := p.GetContext(query)
+		if err != nil {
+			h.logger.Error("failed p.GetContext: %w", zap.Error(err))
+			continue
+		}
+		if len(context) == 0 {
+			continue
+		}
+		allContexts[p.Command()] = context
+	}
+
+	result := make([]config.HistoryItem, 0, len(historyList))
+	for _, item := range historyList {
+		var zeroTime time.Time
+		if item.LastSucceededAt == zeroTime {
+			continue
+		}
+
+		contexts, ok := allContexts[strings.Fields(item.Command)[0]]
+		if !ok {
+			result = append(result, item)
+			continue
+		}
+		if len(contexts) == 0 {
+			result = append(result, item)
+			continue
+		}
+		if reflect.DeepEqual(contexts, item.Context) {
+			result = append(result, item)
+			continue
+		}
+	}
+	if len(result) == 0 {
+		return nil
+	}
+	return result
 }
 
 func (h HistoryPlugin) Suggest(arg SuggestArg) ([]string, error) {
@@ -31,12 +84,7 @@ func (h HistoryPlugin) Suggest(arg SuggestArg) ([]string, error) {
 		query = strings.Join(arg.Args, " ")
 	}
 
-	currentDir, err := os.Getwd()
-	if err != nil {
-		return []string{}, err
-	}
-	historyList := arg.History.FilterByDirectory(currentDir)
-
+	historyList := h.filterHistoryList(arg.History.Get(), query)
 	lines := make([]string, 0, len(historyList)+1)
 	lines = append(lines, fmt.Sprintf("%-50s %20s", "command", "status"))
 	for _, historyItem := range historyList {

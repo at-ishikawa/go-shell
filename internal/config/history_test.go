@@ -94,8 +94,8 @@ func TestHistory_SaveFile(t *testing.T) {
 				maxSize:  10,
 				config:   tmpConfig,
 				list: []HistoryItem{
-					{Command: "command1", LastSucceededAt: now.Add(1), LastFailedAt: now.Add(2), Count: 1, Directories: []string{"/path/to/dir1", "/path/to/dir2"}},
-					{Command: "command2", LastSucceededAt: now.Add(10), LastFailedAt: now.Add(20), Count: 2, Directories: []string{"/path/to/dir11", "/path/to/dir12"}},
+					{Command: "command1", LastSucceededAt: now.Add(1), LastFailedAt: now.Add(2), Count: 1, Context: map[string]string{"key": "value"}},
+					{Command: "command2", LastSucceededAt: now.Add(10), LastFailedAt: now.Add(20), Count: 2},
 				},
 				currentTime: now,
 			},
@@ -187,9 +187,9 @@ func TestHistory_Add(t *testing.T) {
 		name    string
 		history History
 
-		command   string
-		status    int
-		directory string
+		command string
+		status  int
+		context map[string]string
 
 		wantList  []HistoryItem
 		wantIndex int
@@ -200,15 +200,19 @@ func TestHistory_Add(t *testing.T) {
 				list:  []HistoryItem{},
 				index: 0,
 			},
-			command:   "command1",
-			status:    0,
-			directory: "/path/to/dir1",
+			command: "command1",
+			status:  0,
+			context: map[string]string{
+				"key": "value",
+			},
 			wantList: []HistoryItem{
 				{
 					Command:         "command1",
 					Count:           1,
 					LastSucceededAt: commandRunAt,
-					Directories:     []string{"/path/to/dir1"},
+					Context: map[string]string{
+						"key": "value",
+					},
 				},
 			},
 			wantIndex: 1,
@@ -224,9 +228,11 @@ func TestHistory_Add(t *testing.T) {
 				},
 				index: 1,
 			},
-			command:   "command2",
-			status:    1,
-			directory: "/path/to/dir1",
+			command: "command2",
+			status:  1,
+			context: map[string]string{
+				"key": "value",
+			},
 			wantList: []HistoryItem{
 				{
 					Command: "command1",
@@ -236,7 +242,47 @@ func TestHistory_Add(t *testing.T) {
 					Command:      "command2",
 					Count:        1,
 					LastFailedAt: commandRunAt,
-					Directories:  []string{"/path/to/dir1"},
+					Context: map[string]string{
+						"key": "value",
+					},
+				},
+			},
+			wantIndex: 2,
+		},
+		{
+			name: "Run the same command with different context",
+			history: History{
+				list: []HistoryItem{
+					{
+						Command: "command1",
+						Count:   1,
+						Context: map[string]string{
+							"key": "value",
+						},
+					},
+				},
+				index: 1,
+			},
+			command: "command1",
+			status:  1,
+			context: map[string]string{
+				"key": "value2",
+			},
+			wantList: []HistoryItem{
+				{
+					Command: "command1",
+					Count:   1,
+					Context: map[string]string{
+						"key": "value",
+					},
+				},
+				{
+					Command:      "command1",
+					Count:        1,
+					LastFailedAt: commandRunAt,
+					Context: map[string]string{
+						"key": "value2",
+					},
 				},
 			},
 			wantIndex: 2,
@@ -250,21 +296,27 @@ func TestHistory_Add(t *testing.T) {
 						Command:         "command1",
 						Count:           2,
 						LastSucceededAt: time.Date(2023, 1, 2, 0, 0, 0, 0, time.UTC),
-						Directories:     []string{"/path/to/dir1"},
+						Context: map[string]string{
+							"key": "value",
+						},
 					},
 				},
 				index: 1,
 			},
-			command:   "command1",
-			status:    1,
-			directory: "/path/to/dir2",
+			command: "command1",
+			status:  1,
+			context: map[string]string{
+				"key": "value",
+			},
 			wantList: []HistoryItem{
 				{
 					Command:         "command1",
 					Count:           3,
 					LastSucceededAt: time.Date(2023, 1, 2, 0, 0, 0, 0, time.UTC),
 					LastFailedAt:    commandRunAt,
-					Directories:     []string{"/path/to/dir1", "/path/to/dir2"},
+					Context: map[string]string{
+						"key": "value",
+					},
 				},
 			},
 			wantIndex: 1,
@@ -273,7 +325,7 @@ func TestHistory_Add(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			tc.history.Add(tc.command, tc.status, tc.directory, commandRunAt)
+			tc.history.Add(tc.command, tc.status, tc.context, commandRunAt)
 			assert.Equal(t, tc.wantList, tc.history.list)
 			assert.Equal(t, tc.wantIndex, tc.history.index)
 		})

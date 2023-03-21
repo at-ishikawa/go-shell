@@ -27,6 +27,10 @@ func (f FilePlugin) Command() string {
 	return ""
 }
 
+func (f FilePlugin) GetContext(_ string) (map[string]string, error) {
+	return nil, nil
+}
+
 func (f FilePlugin) Suggest(arg SuggestArg) ([]string, error) {
 	suggestedValuesFromHistory, err := arg.GetSuggestedValues()
 	if err != nil {

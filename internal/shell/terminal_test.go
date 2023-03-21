@@ -8,7 +8,7 @@ import (
 
 	"github.com/at-ishikawa/go-shell/internal/config"
 	"github.com/at-ishikawa/go-shell/internal/keyboard"
-	"github.com/at-ishikawa/go-shell/internal/mocks/mock_plugin"
+	"github.com/at-ishikawa/go-shell/internal/plugin"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
@@ -117,7 +117,7 @@ func TestTerminal_HandleShortcutKey(t *testing.T) {
 	newHistoryFromCommands := func(strs []string, countPrevious int) *config.History {
 		hist := config.History{}
 		for _, str := range strs {
-			hist.Add(str, 0, "/path/to/dir", time.Now())
+			hist.Add(str, 0, nil, time.Now())
 		}
 		for i := 0; i < countPrevious; i++ {
 			hist.Previous()
@@ -950,7 +950,7 @@ func TestTerminal_HandleShortcutKey(t *testing.T) {
 			inputCommand string
 			keyEvent     keyboard.KeyEvent
 
-			mockDefaultPlugin func(mockPlugin *mock_plugin.MockPlugin)
+			mockDefaultPlugin func(mockPlugin *plugin.MockPlugin)
 
 			wantCommand          string
 			wantCursor           int
@@ -962,7 +962,7 @@ func TestTerminal_HandleShortcutKey(t *testing.T) {
 				keyEvent: keyboard.KeyEvent{
 					KeyCode: keyboard.Tab,
 				},
-				mockDefaultPlugin: func(mockPlugin *mock_plugin.MockPlugin) {
+				mockDefaultPlugin: func(mockPlugin *plugin.MockPlugin) {
 					mockPlugin.EXPECT().Suggest(gomock.Any()).Times(0)
 				},
 			},
@@ -974,7 +974,7 @@ func TestTerminal_HandleShortcutKey(t *testing.T) {
 					KeyCode: keyboard.Tab,
 				},
 
-				mockDefaultPlugin: func(mockPlugin *mock_plugin.MockPlugin) {
+				mockDefaultPlugin: func(mockPlugin *plugin.MockPlugin) {
 					mockPlugin.EXPECT().Suggest(gomock.Any()).Return([]string{"/tmp"}, nil).Times(1)
 				},
 
@@ -985,7 +985,7 @@ func TestTerminal_HandleShortcutKey(t *testing.T) {
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
 				mockController := gomock.NewController(t)
-				mockPlugin := mock_plugin.NewMockPlugin(mockController)
+				mockPlugin := plugin.NewMockPlugin(mockController)
 				tc.mockDefaultPlugin(mockPlugin)
 				suggester := commandSuggester{
 					defaultPlugin: mockPlugin,

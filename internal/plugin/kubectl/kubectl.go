@@ -71,6 +71,18 @@ func (k *KubeCtlPlugin) Command() string {
 	return Cli
 }
 
+func (k *KubeCtlPlugin) GetContext(_ string) (map[string]string, error) {
+	result := map[string]string{}
+
+	// TODO: replace the user defined context with the cluster
+	context, err := GetContext()
+	if err != nil {
+		return result, err
+	}
+	result["context"] = context
+	return result, nil
+}
+
 func (k *KubeCtlPlugin) Suggest(arg plugin.SuggestArg) ([]string, error) {
 	args := arg.Args
 	if len(args) < 2 {

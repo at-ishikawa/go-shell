@@ -27,6 +27,10 @@ func (g GitPlugin) Command() string {
 	return g.command
 }
 
+func (g GitPlugin) GetContext(_ string) (map[string]string, error) {
+	return nil, nil
+}
+
 func (g GitPlugin) Suggest(arg plugin.SuggestArg) ([]string, error) {
 	args := arg.Args
 	if len(args) < 2 {

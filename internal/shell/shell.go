@@ -56,7 +56,7 @@ func NewShell(inFile *os.File, outFile *os.File, errorFile *os.File, options Opt
 	if err := commandHistory.LoadFile(); err != nil {
 		return Shell{}, fmt.Errorf("failed to load a history file: %w", err)
 	}
-	suggester, err := newCommandSuggester(&commandHistory, homeDir)
+	suggester, err := newCommandSuggester(&commandHistory, homeDir, logger)
 	if err != nil {
 		return Shell{}, err
 	}

@@ -3,6 +3,8 @@ package shell
 import (
 	"strings"
 
+	"go.uber.org/zap"
+
 	"github.com/at-ishikawa/go-shell/internal/completion"
 	"github.com/at-ishikawa/go-shell/internal/config"
 	"github.com/at-ishikawa/go-shell/internal/plugin"
@@ -17,7 +19,7 @@ type commandSuggester struct {
 	historyPlugin plugin.Plugin
 }
 
-func newCommandSuggester(history *config.History, homeDir string) (commandSuggester, error) {
+func newCommandSuggester(history *config.History, homeDir string, logger *zap.Logger) (commandSuggester, error) {
 	tcellCompletionUi, err := completion.NewTcellCompletion()
 	if err != nil {
 		return commandSuggester{}, err
@@ -35,7 +37,7 @@ func newCommandSuggester(history *config.History, homeDir string) (commandSugges
 		history:       history,
 		plugins:       plugins,
 		defaultPlugin: plugin.NewFilePlugin(tcellCompletionUi, homeDir),
-		historyPlugin: plugin.NewHistoryPlugin(tcellCompletionUi),
+		historyPlugin: plugin.NewHistoryPlugin(plugins, tcellCompletionUi, logger),
 	}, nil
 }
 
@@ -53,5 +55,19 @@ func (s commandSuggester) suggestCommand(inputCommand string, pluginArgs plugin.
 	if !ok {
 		suggestPlugin = s.defaultPlugin
 	}
+
 	return suggestPlugin.Suggest(pluginArgs)
+}
+
+func (s commandSuggester) getContext(command string) (map[string]string, error) {
+	args := strings.Fields(command)
+	if len(args) == 0 {
+		return nil, nil
+	}
+
+	suggestPlugin, ok := s.plugins[args[0]]
+	if !ok {
+		suggestPlugin = s.defaultPlugin
+	}
+	return suggestPlugin.GetContext(command)
 }

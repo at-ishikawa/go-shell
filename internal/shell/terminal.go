@@ -100,11 +100,6 @@ func (term *terminal) start(f func(inputCommand string) (int, error)) error {
 			break
 		}
 
-		commandDirectory, err := os.Getwd()
-		if err != nil {
-			panic(err)
-		}
-
 		// For some reason, term.Restore for an input is required before executing a command
 		if err := term.restore(); err != nil {
 			panic(err)
@@ -117,12 +112,17 @@ func (term *terminal) start(f func(inputCommand string) (int, error)) error {
 			panic(err)
 		}
 
+		context, err := term.commandSuggester.getContext(inputCommand)
+		if err != nil {
+			term.logger.Error("failed term.commandSuggester.getContext: %w", zap.Error(err))
+		}
+
 		// wait for the previous stored history process will be done
 		if historyChannel != nil {
 			<-historyChannel
 		}
 		// In order to avoid storing commands with syntax error, do not store commands failed
-		historyChannel = term.history.Sync(inputCommand, exitCode, commandDirectory, term.logger)
+		historyChannel = term.history.Sync(inputCommand, exitCode, context, term.logger)
 	}
 	if historyChannel != nil {
 		<-historyChannel
@@ -409,6 +409,7 @@ func (term *terminal) suggest(inputCommand string, suggestFunc func(plugin.Sugge
 	}
 
 	arg := plugin.SuggestArg{
+		Command:         inputCommand,
 		Args:            strings.Fields(inputCommand),
 		History:         term.history,
 		CurrentArgToken: strings.TrimSpace(currentArgToken),

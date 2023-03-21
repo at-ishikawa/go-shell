@@ -3,6 +3,7 @@ package config
 import (
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"strings"
 	"time"
 
@@ -12,15 +13,15 @@ import (
 type HistoryItem struct {
 	Command string `json:"command"`
 	// @deprecated
-	Status int `json:"status"`
+	Status int `json:"status,omitempty"`
 
 	// @deprecated
-	RunAt time.Time `json:"run_at"`
+	RunAt time.Time `json:"run_at,omitempty"`
 
-	LastSucceededAt time.Time `json:"last_succeeded_at"`
-	LastFailedAt    time.Time `json:"last_failed_at"`
-	Count           int       `json:"count"`
-	Directories     []string  `json:"directories"`
+	LastSucceededAt time.Time         `json:"last_succeeded_at"`
+	LastFailedAt    time.Time         `json:"last_failed_at,omitempty"`
+	Count           int               `json:"count"`
+	Context         map[string]string `json:"context,omitempty"`
 }
 
 type History struct {
@@ -42,23 +43,6 @@ func NewHistory(c *Config) History {
 
 func (h *History) Get() []HistoryItem {
 	return h.list
-}
-
-func (h *History) FilterByDirectory(directory string) []HistoryItem {
-	result := []HistoryItem{}
-Loop:
-	for _, item := range h.list {
-		for _, dir := range item.Directories {
-			if dir == directory {
-				result = append(result, item)
-				continue Loop
-			}
-		}
-	}
-	if len(result) == 0 {
-		return h.list
-	}
-	return result
 }
 
 func (h *History) LoadFile() error {
@@ -103,7 +87,7 @@ func (h History) StartWith(inputCommand string, status int) string {
 func (h *History) Sync(
 	command string,
 	status int,
-	commandDirectory string,
+	currentContext map[string]string,
 	logger *zap.Logger,
 ) chan struct{} {
 	ch := make(chan struct{})
@@ -121,7 +105,7 @@ func (h *History) Sync(
 			currentTime = time.Now()
 		}
 
-		h.Add(command, status, commandDirectory, currentTime)
+		h.Add(command, status, currentContext, currentTime)
 		if err := h.saveFile(); err != nil {
 			logger.Error("Failed to save a history file",
 				zap.Error(err),
@@ -134,35 +118,23 @@ func (h *History) Sync(
 	return ch
 }
 
-func (h *History) Add(command string, status int, commandDirectory string, currentTime time.Time) {
+func (h *History) Add(command string, status int, currentContext map[string]string, currentTime time.Time) {
 	var lastSucceededAt time.Time
 	var lastFailedAt time.Time
-	var directories []string
 	count := 1
 
 	for index, item := range h.list {
-		if command == item.Command {
+		if command == item.Command && reflect.DeepEqual(item.Context, currentContext) {
 			// remove this element
 			h.list = append(h.list[:index], h.list[index+1:]...)
 
 			lastSucceededAt = item.LastSucceededAt
 			lastFailedAt = item.LastFailedAt
-			directories = item.Directories
 			count = item.Count + 1
 			break
 		}
 	}
 
-	isNewDirectory := true
-	for _, dir := range directories {
-		if dir == commandDirectory {
-			isNewDirectory = false
-			break
-		}
-	}
-	if isNewDirectory {
-		directories = append(directories, commandDirectory)
-	}
 	if status == 0 {
 		lastSucceededAt = currentTime
 	} else {
@@ -173,10 +145,9 @@ func (h *History) Add(command string, status int, commandDirectory string, curre
 		Command:         command,
 		LastSucceededAt: lastSucceededAt,
 		LastFailedAt:    lastFailedAt,
-		Directories:     directories,
+		Context:         currentContext,
 		Count:           count,
 	})
-
 	h.index = len(h.list)
 }
 
