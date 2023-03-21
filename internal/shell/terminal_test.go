@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"testing"
+	"time"
 
 	"github.com/at-ishikawa/go-shell/internal/config"
 	"github.com/at-ishikawa/go-shell/internal/keyboard"
@@ -113,11 +114,10 @@ func TestTerminal_getInputCommand(t *testing.T) {
 }
 
 func TestTerminal_HandleShortcutKey(t *testing.T) {
-
 	newHistoryFromCommands := func(strs []string, countPrevious int) *config.History {
 		hist := config.History{}
 		for _, str := range strs {
-			hist.Add(str, 0)
+			hist.Add(str, 0, "/path/to/dir", time.Now())
 		}
 		for i := 0; i < countPrevious; i++ {
 			hist.Previous()

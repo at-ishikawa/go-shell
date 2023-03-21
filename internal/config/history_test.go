@@ -94,8 +94,8 @@ func TestHistory_SaveFile(t *testing.T) {
 				maxSize:  10,
 				config:   tmpConfig,
 				list: []HistoryItem{
-					{Command: "command1", RunAt: now},
-					{Command: "command2", RunAt: now},
+					{Command: "command1", LastSucceededAt: now.Add(1), LastFailedAt: now.Add(2), Count: 1, Directories: []string{"/path/to/dir1", "/path/to/dir2"}},
+					{Command: "command2", LastSucceededAt: now.Add(10), LastFailedAt: now.Add(20), Count: 2, Directories: []string{"/path/to/dir11", "/path/to/dir12"}},
 				},
 				currentTime: now,
 			},
@@ -176,6 +176,106 @@ func TestHistory_Next(t *testing.T) {
 			assert.Equal(t, tc.want, got)
 			assert.Equal(t, tc.wantIndex, tc.history.index)
 			assert.Equal(t, tc.wantOk, ok)
+		})
+	}
+}
+
+func TestHistory_Add(t *testing.T) {
+	commandRunAt := time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)
+
+	testCases := []struct {
+		name    string
+		history History
+
+		command   string
+		status    int
+		directory string
+
+		wantList  []HistoryItem
+		wantIndex int
+	}{
+		{
+			name: "The first command",
+			history: History{
+				list:  []HistoryItem{},
+				index: 0,
+			},
+			command:   "command1",
+			status:    0,
+			directory: "/path/to/dir1",
+			wantList: []HistoryItem{
+				{
+					Command:         "command1",
+					Count:           1,
+					LastSucceededAt: commandRunAt,
+					Directories:     []string{"/path/to/dir1"},
+				},
+			},
+			wantIndex: 1,
+		},
+		{
+			name: "Run a different command",
+			history: History{
+				list: []HistoryItem{
+					{
+						Command: "command1",
+						Count:   1,
+					},
+				},
+				index: 1,
+			},
+			command:   "command2",
+			status:    1,
+			directory: "/path/to/dir1",
+			wantList: []HistoryItem{
+				{
+					Command: "command1",
+					Count:   1,
+				},
+				{
+					Command:      "command2",
+					Count:        1,
+					LastFailedAt: commandRunAt,
+					Directories:  []string{"/path/to/dir1"},
+				},
+			},
+			wantIndex: 2,
+		},
+
+		{
+			name: "Add the same command",
+			history: History{
+				list: []HistoryItem{
+					{
+						Command:         "command1",
+						Count:           2,
+						LastSucceededAt: time.Date(2023, 1, 2, 0, 0, 0, 0, time.UTC),
+						Directories:     []string{"/path/to/dir1"},
+					},
+				},
+				index: 1,
+			},
+			command:   "command1",
+			status:    1,
+			directory: "/path/to/dir2",
+			wantList: []HistoryItem{
+				{
+					Command:         "command1",
+					Count:           3,
+					LastSucceededAt: time.Date(2023, 1, 2, 0, 0, 0, 0, time.UTC),
+					LastFailedAt:    commandRunAt,
+					Directories:     []string{"/path/to/dir1", "/path/to/dir2"},
+				},
+			},
+			wantIndex: 1,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			tc.history.Add(tc.command, tc.status, tc.directory, commandRunAt)
+			assert.Equal(t, tc.wantList, tc.history.list)
+			assert.Equal(t, tc.wantIndex, tc.history.index)
 		})
 	}
 }

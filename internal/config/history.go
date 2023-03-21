@@ -10,9 +10,17 @@ import (
 )
 
 type HistoryItem struct {
-	Command string    `json:"command"`
-	Status  int       `json:"status"`
-	RunAt   time.Time `json:"run_at"`
+	Command string `json:"command"`
+	// @deprecated
+	Status int `json:"status"`
+
+	// @deprecated
+	RunAt time.Time `json:"run_at"`
+
+	LastSucceededAt time.Time `json:"last_succeeded_at"`
+	LastFailedAt    time.Time `json:"last_failed_at"`
+	Count           int       `json:"count"`
+	Directories     []string  `json:"directories"`
 }
 
 type History struct {
@@ -48,6 +56,7 @@ func (h *History) LoadFile() error {
 	if err := json.Unmarshal(fileData, &h.list); err != nil {
 		return err
 	}
+
 	h.index = len(h.list)
 	return nil
 }
@@ -77,6 +86,7 @@ func (h History) StartWith(inputCommand string, status int) string {
 func (h *History) Sync(
 	command string,
 	status int,
+	commandDirectory string,
 	logger *zap.Logger,
 ) chan struct{} {
 	ch := make(chan struct{})
@@ -87,7 +97,14 @@ func (h *History) Sync(
 			)
 			return
 		}
-		h.Add(command, status)
+		var currentTime time.Time
+		if !h.currentTime.Equal(time.Time{}) {
+			currentTime = h.currentTime
+		} else {
+			currentTime = time.Now()
+		}
+
+		h.Add(command, status, commandDirectory, currentTime)
 		if err := h.saveFile(); err != nil {
 			logger.Error("Failed to save a history file",
 				zap.Error(err),
@@ -100,19 +117,49 @@ func (h *History) Sync(
 	return ch
 }
 
-func (h *History) Add(command string, status int) {
-	var currentTime time.Time
-	if !h.currentTime.Equal(time.Time{}) {
-		currentTime = h.currentTime
+func (h *History) Add(command string, status int, commandDirectory string, currentTime time.Time) {
+	var lastSucceededAt time.Time
+	var lastFailedAt time.Time
+	var directories []string
+	count := 1
+
+	for index, item := range h.list {
+		if command == item.Command {
+			// remove this element
+			h.list = append(h.list[:index], h.list[index+1:]...)
+
+			lastSucceededAt = item.LastSucceededAt
+			lastFailedAt = item.LastFailedAt
+			directories = item.Directories
+			count = item.Count + 1
+			break
+		}
+	}
+
+	isNewDirectory := true
+	for _, dir := range directories {
+		if dir == commandDirectory {
+			isNewDirectory = false
+			break
+		}
+	}
+	if isNewDirectory {
+		directories = append(directories, commandDirectory)
+	}
+	if status == 0 {
+		lastSucceededAt = currentTime
 	} else {
-		currentTime = time.Now()
+		lastFailedAt = currentTime
 	}
 
 	h.list = append(h.list, HistoryItem{
-		Status:  status,
-		Command: command,
-		RunAt:   currentTime,
+		Command:         command,
+		LastSucceededAt: lastSucceededAt,
+		LastFailedAt:    lastFailedAt,
+		Directories:     directories,
+		Count:           count,
 	})
+
 	h.index = len(h.list)
 }
 
