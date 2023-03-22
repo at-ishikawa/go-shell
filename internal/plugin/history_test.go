@@ -26,7 +26,8 @@ func TestHistoryPlugin_filterHistoryList(t *testing.T) {
 				mockPlugin := NewMockPlugin(mockController)
 				mockPlugin.EXPECT().Command().Return("mock").Times(1)
 				mockPlugin.EXPECT().GetContext(gomock.Any()).Return(map[string]string{
-					"key": "value",
+					"key":  "value",
+					"key2": "value2",
 				}, nil).Times(1)
 				return HistoryPlugin{
 					plugins: map[string]Plugin{
@@ -36,8 +37,12 @@ func TestHistoryPlugin_filterHistoryList(t *testing.T) {
 			},
 			historyList: []config.HistoryItem{
 				{Command: "no success command"},
-				{Command: "mock with the same context", LastSucceededAt: lastSucceededAt, Context: map[string]string{
+				{Command: "mock with the same part of the context", LastSucceededAt: lastSucceededAt, Context: map[string]string{
 					"key": "value",
+				}},
+				{Command: "mock with the same context", LastSucceededAt: lastSucceededAt, Context: map[string]string{
+					"key":  "value",
+					"key2": "value2",
 				}},
 				{Command: "mock with the different context", LastSucceededAt: lastSucceededAt, Context: map[string]string{
 					"key":  "value",
@@ -46,7 +51,8 @@ func TestHistoryPlugin_filterHistoryList(t *testing.T) {
 			},
 			want: []config.HistoryItem{
 				{Command: "mock with the same context", LastSucceededAt: lastSucceededAt, Context: map[string]string{
-					"key": "value",
+					"key":  "value",
+					"key2": "value2",
 				}},
 			},
 		},

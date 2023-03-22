@@ -71,7 +71,7 @@ func (k *KubeCtlPlugin) Command() string {
 	return Cli
 }
 
-func (k *KubeCtlPlugin) GetContext(_ string) (map[string]string, error) {
+func (k *KubeCtlPlugin) GetContext(inputCommand string) (map[string]string, error) {
 	result := map[string]string{}
 
 	// TODO: replace the user defined context with the cluster
@@ -80,6 +80,17 @@ func (k *KubeCtlPlugin) GetContext(_ string) (map[string]string, error) {
 		return result, err
 	}
 	result["context"] = context
+
+	_, resultOptions := filterOptions(strings.Fields(inputCommand), kubectloptions.KubeCtlGlobalOptions)
+	if namespace, ok := resultOptions["namespace"]; ok {
+		result["namespace"] = namespace
+	} else {
+		namespace, err = GetNamespace(context)
+		if err != nil {
+			return result, err
+		}
+		result["namespace"] = namespace
+	}
 	return result, nil
 }
 
