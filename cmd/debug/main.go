@@ -3,8 +3,12 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"log"
 	"os"
+	"os/exec"
+	"os/signal"
 	"strings"
+	"syscall"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/mattn/go-runewidth"
@@ -20,8 +24,41 @@ func main() {
 	switch arg {
 	case "keycode":
 		consoleKey()
+	case "interrupt":
+		interrupt()
 	default:
 		runTcell()
+	}
+}
+
+func interrupt() {
+	log.Println("sleep")
+	errCh := make(chan error)
+	defer close(errCh)
+	cmd := exec.Command("sleep", "60")
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		Setpgid: true,
+	}
+
+	go func() {
+		errCh <- cmd.Run()
+		log.Println("end command")
+	}()
+
+	interuptSignals := make(chan os.Signal, 1)
+	defer signal.Stop(interuptSignals)
+	signal.Notify(interuptSignals, os.Interrupt)
+	go func() {
+		sig := <-interuptSignals
+		log.Println("canceled")
+		if err := cmd.Process.Signal(sig); err != nil {
+			log.Printf("failed to send a signal %d: ", sig)
+			log.Println(err)
+		}
+	}()
+	if err := <-errCh; err != nil {
+		log.Printf("failed to run the command: ")
+		log.Println(err)
 	}
 }
 

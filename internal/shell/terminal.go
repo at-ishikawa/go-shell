@@ -134,8 +134,9 @@ func (term *terminal) start(f func(inputCommand string) (int, error)) error {
 func (term terminal) commandFactory() func(name string, args ...string) *exec.Cmd {
 	return func(name string, args ...string) *exec.Cmd {
 		command := exec.Command(name, args...)
-		command.Stderr = term.stdErr.file
+		// command.Stdin = term.in.file
 		command.Stdout = term.out.file
+		command.Stderr = term.stdErr.file
 		return command
 	}
 }
@@ -342,7 +343,7 @@ func (term *terminal) getInputCommand() (string, error) {
 	term.candidateCommand = ""
 
 	interuptSignals := make(chan os.Signal, 1)
-	defer close(interuptSignals)
+	defer signal.Stop(interuptSignals)
 	signal.Notify(interuptSignals, syscall.SIGINT)
 
 	inputCommand := ""
