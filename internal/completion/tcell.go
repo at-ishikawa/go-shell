@@ -25,6 +25,40 @@ type CompleteOptions struct {
 	IsAnsiColor    bool
 }
 
+type finder struct {
+	header  string
+	allRows []finderRow
+
+	// the index of all rows is getVisibleRows()[cursorRow].index
+	cursorRow int
+
+	query             string
+	previewCommand    PreviewCommandType
+	isMultiSelectMode bool
+}
+
+func newFinder(rows []string, options CompleteOptions, isMultiSelectMode bool) finder {
+	allRows := make([]finderRow, 0, len(rows))
+	for index, r := range rows {
+		allRows = append(allRows, finderRow{
+			visible: true,
+			index:   index,
+			value:   r,
+		})
+	}
+
+	f := finder{
+		header:  options.Header,
+		allRows: allRows,
+
+		query:             options.InitialQuery,
+		previewCommand:    options.PreviewCommand,
+		isMultiSelectMode: isMultiSelectMode,
+	}
+	f.updateQuery(options.InitialQuery)
+	return f
+}
+
 type finderRow struct {
 	visible  bool
 	selected bool
@@ -32,29 +66,26 @@ type finderRow struct {
 	value    string
 }
 
-type finderRowsType []finderRow
-
-func (vr *finderRowsType) filterByQuery(query string) finderRowsType {
-	result := finderRowsType{}
-	for i, row := range *vr {
-		if query != "" && !strings.Contains(row.value, query) {
-			(*vr)[i].visible = false
+func (f finder) getVisibleRows() []finderRow {
+	result := []finderRow{}
+	for _, row := range f.allRows {
+		if !row.visible {
 			continue
 		}
-		(*vr)[i].visible = true
 		result = append(result, row)
 	}
 	return result
 }
 
-func (vr finderRowsType) Len() int {
-	count := 0
-	for _, r := range vr {
-		if r.visible {
-			count++
+func (f *finder) updateQuery(query string) {
+	f.query = query
+	for i, row := range f.allRows {
+		if query != "" && !strings.Contains(row.value, query) {
+			f.allRows[i].visible = false
+			continue
 		}
+		f.allRows[i].visible = true
 	}
-	return count
 }
 
 type ansiString ansi.AnsiString
@@ -102,13 +133,31 @@ func NewTcellCompletion() (*TcellCompletion, error) {
 }
 
 func (complete *TcellCompletion) CompleteMulti(rows []string, options CompleteOptions) ([]string, error) {
-	return complete.complete(rows, options, true)
+	screen, err := tcell.NewScreen()
+	if err != nil {
+		return nil, fmt.Errorf("failed tcell.NewScreen: %w", err)
+	}
+	if err := screen.Init(); err != nil {
+		return nil, fmt.Errorf("failed screen.Init(): %w", err)
+	}
+	defer screen.Fini()
+
+	return complete.complete(screen, rows, options, true)
 }
 
 func (complete TcellCompletion) Complete(rows []string, options CompleteOptions) (string, error) {
-	result, err := complete.complete(rows, options, false)
+	screen, err := tcell.NewScreen()
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed tcell.NewScreen: %w", err)
+	}
+	if err := screen.Init(); err != nil {
+		return "", fmt.Errorf("failed screen.Init(): %w", err)
+	}
+	defer screen.Fini()
+
+	result, err := complete.complete(screen, rows, options, false)
+	if err != nil {
+		return "", fmt.Errorf("failed TcellCompletion.complete(): %w", err)
 	}
 	if len(result) == 0 {
 		return "", nil
@@ -142,16 +191,16 @@ func emitStr(s tcell.Screen, x, y int, style tcell.Style, str string) int {
 func (complete TcellCompletion) showPreview(
 	screen tcell.Screen,
 	previewCommand PreviewCommandType,
-	visibleRows finderRowsType,
+	visibleRows []finderRow,
 	cursorRow int,
 ) {
 	if previewCommand == nil {
 		return
 	}
-	if visibleRows.Len() == 0 {
+	if len(visibleRows) == 0 {
 		return
 	}
-	if cursorRow >= visibleRows.Len() {
+	if cursorRow >= len(visibleRows) {
 		return
 	}
 	if cursorRow < 0 {
@@ -182,18 +231,13 @@ func (complete TcellCompletion) showPreview(
 	screen.Show()
 }
 
-func (complete TcellCompletion) showVisibleRows(
-	screen tcell.Screen,
-	visibleRows finderRowsType,
-	cursorRow int,
-	query string,
-	header string,
-) {
+func (complete TcellCompletion) showVisibleRows(screen tcell.Screen, currentFinder finder) {
 	width, _ := screen.Size()
-	prompt := fmt.Sprintf("> %s", query)
+	prompt := fmt.Sprintf("> %s", currentFinder.query)
 	currentX := emitStr(screen, 0, 0, tcell.StyleDefault, prompt)
 	screen.ShowCursor(currentX, 0)
 
+	header := currentFinder.header
 	if len(header) > 0 {
 		emitStr(screen, 2, 1, tcell.StyleDefault, header)
 	} else {
@@ -201,11 +245,12 @@ func (complete TcellCompletion) showVisibleRows(
 	}
 	showY := 2
 
-	for rowIndex := 0; rowIndex < visibleRows.Len(); rowIndex++ {
+	visibleRows := currentFinder.getVisibleRows()
+	for rowIndex := 0; rowIndex < len(visibleRows); rowIndex++ {
 		row := visibleRows[rowIndex]
 
 		style := tcell.StyleDefault
-		if cursorRow == rowIndex {
+		if currentFinder.cursorRow == rowIndex {
 			style = tcell.StyleDefault.Foreground(tcell.ColorCadetBlue.TrueColor()).Background(tcell.ColorWhite)
 		}
 		if row.selected {
@@ -217,119 +262,134 @@ func (complete TcellCompletion) showVisibleRows(
 	}
 
 	screen.Show()
-
 }
 
-func (complete TcellCompletion) complete(rows []string, options CompleteOptions, isMultiSelectMode bool) ([]string, error) {
-	header := options.Header
-	screen, err := tcell.NewScreen()
-	if err != nil {
-		return []string{}, err
+func (complete TcellCompletion) complete(screen tcell.Screen, rows []string, options CompleteOptions, isMultiSelectMode bool) ([]string, error) {
+	rows = func(rows []string) []string {
+		result := make([]string, 0, len(rows))
+		for _, row := range rows {
+			if strings.TrimSpace(row) == "" {
+				continue
+			}
+			result = append(result, row)
+		}
+		return result
+	}(rows)
+	if len(rows) == 0 {
+		screen.Beep()
+		return nil, nil
 	}
-	if err := screen.Init(); err != nil {
-		return []string{}, err
-	}
-	defer screen.Fini()
 
 	screen.SetCursorStyle(tcell.CursorStyleDefault)
+	currentFinder := newFinder(rows, options, isMultiSelectMode)
+	visibleRows := currentFinder.getVisibleRows()
 
-	cursorRow := 0
-	query := options.InitialQuery
-
-	allRows := make(finderRowsType, 0, len(rows))
-	for index, r := range rows {
-		allRows = append(allRows, finderRow{
-			visible: true,
-			index:   index,
-			value:   r,
-		})
-	}
-	visibleRows := allRows
-	if query != "" {
-		visibleRows = allRows.filterByQuery(query)
-	}
+	complete.showVisibleRows(screen, currentFinder)
+	complete.showPreview(screen, options.PreviewCommand, visibleRows, currentFinder.cursorRow)
 
 	eg := errgroup.Group{}
-	complete.showVisibleRows(screen, visibleRows, cursorRow, query, header)
-	complete.showPreview(screen, options.PreviewCommand, visibleRows, cursorRow)
 loop:
 	for {
 		switch event := screen.PollEvent().(type) {
 		case *tcell.EventKey:
-			switch event.Key() {
-			case tcell.KeyTAB:
-				if !isMultiSelectMode {
-					// disable a tab key for a single selection mode
-					continue
-				}
-
-				index := visibleRows[cursorRow].index
-				allRows[index].selected = !allRows[index].selected
-				visibleRows[cursorRow].selected = allRows[index].selected
-				if cursorRow < visibleRows.Len()-1 {
-					cursorRow++
-				}
-			case tcell.KeyCtrlC:
-				return []string{}, nil
-
-			case tcell.KeyEnter:
-				if cursorRow < len(visibleRows) {
-					index := visibleRows[cursorRow].index
-					allRows[index].selected = true
-				}
+			var done bool
+			currentFinder, done = complete.handleKeyEvent(currentFinder, event)
+			if done {
 				break loop
-			case tcell.KeyCtrlP:
-				if cursorRow > 0 {
-					cursorRow--
-				}
-			case tcell.KeyCtrlN:
-				if cursorRow < visibleRows.Len()-1 {
-					cursorRow++
-				}
-			case tcell.KeyBackspace, tcell.KeyBackspace2, tcell.KeyRune:
-				if event.Key() == tcell.KeyBackspace ||
-					event.Key() == tcell.KeyBackspace2 {
-					if len(query) > 0 {
-						query = query[:len(query)-1]
-					}
-				} else {
-					ch := event.Rune()
-					query = query + string(ch)
-				}
-				visibleRows = allRows.filterByQuery(query)
-				complete.logger.Debug("query was changed",
-					zap.String("path", "internal/completion/tcell"),
-					zap.String("query", query),
-					zap.Any("allRows", allRows),
-					zap.Any("visibleRows", visibleRows))
-
-				if cursorRow > visibleRows.Len() {
-					cursorRow = visibleRows.Len() - 1
-				}
 			}
 
-			cursorRow := cursorRow
-			visibleRows := visibleRows
-			query := query
+			cursorRow := currentFinder.cursorRow
+			visibleRows := currentFinder.getVisibleRows()
 			eg.Go(func() error {
 				screen.Sync()
 				screen.Clear()
-				complete.showVisibleRows(screen, visibleRows, cursorRow, query, header)
+				complete.showVisibleRows(screen, currentFinder)
 				complete.showPreview(screen, options.PreviewCommand, visibleRows, cursorRow)
 				return nil
 			})
 		}
 	}
 	if err := eg.Wait(); err != nil {
-		return []string{}, err
+		return nil, err
 	}
 
-	result := make([]string, 0, len(allRows))
-	for _, row := range allRows {
+	result := make([]string, 0, len(currentFinder.allRows))
+	for _, row := range currentFinder.allRows {
 		if !row.selected {
 			continue
 		}
 		result = append(result, row.value)
 	}
+	if len(result) == 0 {
+		return nil, nil
+	}
 	return result, nil
+}
+
+func (complete TcellCompletion) handleKeyEvent(currentFinder finder, event *tcell.EventKey) (finder, bool) {
+	visibleRows := currentFinder.getVisibleRows()
+	cursorRow := currentFinder.cursorRow
+	allRows := currentFinder.allRows
+	query := currentFinder.query
+
+	switch event.Key() {
+	case tcell.KeyTAB:
+		if !currentFinder.isMultiSelectMode {
+			// disable a tab key for a single selection mode
+			break
+		}
+
+		index := visibleRows[cursorRow].index
+		allRows[index].selected = !allRows[index].selected
+		currentFinder.allRows = allRows
+		if cursorRow < len(visibleRows)-1 {
+			currentFinder.cursorRow++
+		}
+	case tcell.KeyCtrlC:
+		return currentFinder, true
+
+	case tcell.KeyEnter:
+		if cursorRow < len(visibleRows) {
+			index := visibleRows[cursorRow].index
+			allRows[index].selected = true
+			currentFinder.allRows = allRows
+		}
+		return currentFinder, true
+	case tcell.KeyCtrlP:
+		if cursorRow > 0 {
+			currentFinder.cursorRow--
+		}
+	case tcell.KeyCtrlN:
+		if cursorRow < len(visibleRows)-1 {
+			currentFinder.cursorRow++
+		}
+	case tcell.KeyBackspace, tcell.KeyBackspace2, tcell.KeyRune:
+		if event.Key() == tcell.KeyBackspace ||
+			event.Key() == tcell.KeyBackspace2 {
+			if len(query) > 0 {
+				query = query[:len(query)-1]
+			}
+		} else {
+			ch := event.Rune()
+			query = query + string(ch)
+		}
+
+		currentFinder.updateQuery(query)
+		visibleRows = currentFinder.getVisibleRows()
+		complete.logger.Debug("query was changed",
+			zap.String("path", "internal/completion/tcell"),
+			zap.String("query", query),
+			zap.Any("allRows", allRows),
+			zap.Any("visibleRows", visibleRows))
+
+		if cursorRow >= len(visibleRows) {
+			if len(visibleRows) > 0 {
+				currentFinder.cursorRow = len(visibleRows) - 1
+			} else {
+				currentFinder.cursorRow = 0
+			}
+		}
+	}
+
+	return currentFinder, false
 }
