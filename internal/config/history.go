@@ -123,16 +123,16 @@ func (h *History) Add(command string, status int, currentContext map[string]stri
 	var lastFailedAt time.Time
 	count := 1
 
-	for index, item := range h.list {
+	result := make([]HistoryItem, 0, len(h.list))
+	for _, item := range h.list {
 		if command == item.Command && reflect.DeepEqual(item.Context, currentContext) {
 			// remove this element
-			h.list = append(h.list[:index], h.list[index+1:]...)
-
 			lastSucceededAt = item.LastSucceededAt
 			lastFailedAt = item.LastFailedAt
 			count = item.Count + 1
-			break
+			continue
 		}
+		result = append(result, item)
 	}
 
 	if status == 0 {
@@ -141,7 +141,7 @@ func (h *History) Add(command string, status int, currentContext map[string]stri
 		lastFailedAt = currentTime
 	}
 
-	h.list = append(h.list, HistoryItem{
+	h.list = append(result, HistoryItem{
 		Command:         command,
 		LastSucceededAt: lastSucceededAt,
 		LastFailedAt:    lastFailedAt,

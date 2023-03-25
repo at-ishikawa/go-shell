@@ -218,6 +218,29 @@ func TestHistory_Add(t *testing.T) {
 			wantIndex: 1,
 		},
 		{
+			name: "The command without context",
+			history: History{
+				list: []HistoryItem{
+					{
+						Command:         "command1",
+						Count:           1,
+						LastSucceededAt: commandRunAt,
+					},
+				},
+				index: 1,
+			},
+			command: "command1",
+			status:  0,
+			wantList: []HistoryItem{
+				{
+					Command:         "command1",
+					Count:           2,
+					LastSucceededAt: commandRunAt,
+				},
+			},
+			wantIndex: 1,
+		},
+		{
 			name: "Run a different command",
 			history: History{
 				list: []HistoryItem{
@@ -300,6 +323,14 @@ func TestHistory_Add(t *testing.T) {
 							"key": "value",
 						},
 					},
+					{
+						Command:         "command2",
+						Count:           2,
+						LastSucceededAt: time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC),
+						Context: map[string]string{
+							"key": "value",
+						},
+					},
 				},
 				index: 1,
 			},
@@ -310,6 +341,14 @@ func TestHistory_Add(t *testing.T) {
 			},
 			wantList: []HistoryItem{
 				{
+					Command:         "command2",
+					Count:           2,
+					LastSucceededAt: time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC),
+					Context: map[string]string{
+						"key": "value",
+					},
+				},
+				{
 					Command:         "command1",
 					Count:           3,
 					LastSucceededAt: time.Date(2023, 1, 2, 0, 0, 0, 0, time.UTC),
@@ -319,7 +358,7 @@ func TestHistory_Add(t *testing.T) {
 					},
 				},
 			},
-			wantIndex: 1,
+			wantIndex: 2,
 		},
 	}
 

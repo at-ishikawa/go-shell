@@ -3,6 +3,7 @@ package plugin
 import (
 	"fmt"
 	"reflect"
+	"sort"
 	"strings"
 	"time"
 
@@ -74,6 +75,9 @@ func (h HistoryPlugin) filterHistoryList(historyList []config.HistoryItem, query
 	if len(result) == 0 {
 		return nil
 	}
+	sort.Slice(result, func(i, j int) bool {
+		return i > j
+	})
 	return result
 }
 
