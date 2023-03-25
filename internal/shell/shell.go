@@ -3,6 +3,7 @@ package shell
 import (
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/at-ishikawa/go-shell/internal/config"
@@ -30,6 +31,9 @@ func NewShell(inFile *os.File, outFile *os.File, errorFile *os.File, options Opt
 	}
 	logger, err := func(isDebug bool) (*zap.Logger, error) {
 		tempDir := os.TempDir()
+		if !strings.HasSuffix(tempDir, "/") {
+			tempDir += "/"
+		}
 		loggerPath := fmt.Sprintf("%sgo-shell-%s.log", tempDir, time.Now().Format("2006-01-02"))
 		loggerConfig := zap.NewProductionConfig()
 		if isDebug {
