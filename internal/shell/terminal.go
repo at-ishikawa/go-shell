@@ -71,20 +71,32 @@ func (term *terminal) setPrompt(prompt string) {
 	term.out.setPrompt(prompt)
 }
 
+func (term *terminal) readPrompt() (string, error) {
+	kubeCtx, err := kubectl.GetContext()
+	if err != nil {
+		return "", err
+	}
+	if kubeCtx == "" {
+		return "", nil
+	}
+
+	kubeNamespace, err := kubectl.GetNamespace(kubeCtx)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("[%s|%s] $ ", kubeCtx, kubeNamespace), nil
+}
+
 func (term *terminal) start(f func(inputCommand string) (int, error)) error {
 	var historyChannel chan struct{}
 
 	for {
-		kubeCtx, err := kubectl.GetContext()
+		prompt, err := term.readPrompt()
 		if err != nil {
 			fmt.Println(err)
-		} else {
-			kubeNamespace, err := kubectl.GetNamespace(kubeCtx)
-			if err != nil {
-				fmt.Println(err)
-			} else {
-				term.setPrompt(fmt.Sprintf("[%s|%s] $ ", kubeCtx, kubeNamespace))
-			}
+		}
+		if prompt != "" {
+			term.setPrompt(prompt)
 		}
 
 		inputCommand, err := term.getInputCommand()
