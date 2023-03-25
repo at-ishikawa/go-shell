@@ -978,7 +978,7 @@ func TestTerminal_HandleShortcutKey(t *testing.T) {
 					mockPlugin.EXPECT().Suggest(gomock.Any()).Return([]string{"/tmp"}, nil).Times(1)
 				},
 
-				wantCommand: "ls /tmp",
+				wantCommand: "ls /tmp ",
 			},
 		}
 
