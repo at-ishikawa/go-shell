@@ -1,6 +1,7 @@
 package completion
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/gdamore/tcell/v2"
@@ -114,7 +115,7 @@ func TestTcellCompletion_complete(t *testing.T) {
 		keyEvents func(screen tcell.SimulationScreen)
 
 		want    []string
-		wantErr bool
+		wantErr error
 	}{
 		{
 			name: "single selct: return the first item without no input",
@@ -155,6 +156,21 @@ func TestTcellCompletion_complete(t *testing.T) {
 				screen.InjectKey(enter, emptyRune, tcell.ModNone)
 			},
 			want: []string{"apple", "banana"},
+		},
+		{
+			name: "live reloading causes an error",
+			args: args{
+				rows: []string{"apple"},
+				options: CompleteOptions{
+					LiveReloading: func(row int, query string) ([]string, error) {
+						return nil, errors.New("error")
+					},
+				},
+			},
+			keyEvents: func(screen tcell.SimulationScreen) {
+				screen.InjectKey(tcell.KeyTab, emptyRune, tcell.ModNone)
+			},
+			wantErr: errors.New("error"),
 		},
 		{
 			name: "return nil when no matches",
@@ -204,11 +220,7 @@ func TestTcellCompletion_complete(t *testing.T) {
 			}
 
 			gotErr := eg.Wait()
-			if tc.wantErr {
-				assert.Error(t, gotErr)
-			} else {
-				assert.NoError(t, gotErr)
-			}
+			assert.Equal(t, tc.wantErr, gotErr)
 		})
 	}
 }
@@ -226,6 +238,7 @@ func TestComplete_handleKeyEvent(t *testing.T) {
 			name     string
 			args     args
 			want     finder
+			wantErr  error
 			wantDone bool
 		}{
 			{
@@ -439,8 +452,9 @@ func TestComplete_handleKeyEvent(t *testing.T) {
 				c := &TcellCompletion{
 					logger: zap.NewNop(),
 				}
-				got, gotDone := c.handleKeyEvent(tc.args.finder, tc.args.keyEvent.(*tcell.EventKey))
+				got, gotErr, gotDone := c.handleKeyEvent(tc.args.finder, tc.args.keyEvent.(*tcell.EventKey))
 				assert.Equal(t, tc.want, got)
+				assert.Equal(t, tc.wantErr, gotErr)
 				assert.Equal(t, tc.wantDone, gotDone)
 			})
 		}
@@ -451,10 +465,11 @@ func TestComplete_handleKeyEvent(t *testing.T) {
 			name     string
 			args     args
 			want     finder
+			wantErr  error
 			wantDone bool
 		}{
 			{
-				name: "pressing tab key doesn't change anything",
+				name: "pressing tab key doesn't change anything if no live reloading",
 				args: args{
 					finder: finder{
 						allRows: []finderRow{
@@ -469,6 +484,66 @@ func TestComplete_handleKeyEvent(t *testing.T) {
 					},
 				},
 			},
+			{
+				name: "live reloading updates all rows",
+				args: args{
+					finder: finder{
+						allRows: []finderRow{
+							{visible: true, index: 0, value: "apple"},
+						},
+						liveReloading: func(row int, query string) ([]string, error) {
+							return []string{"dog", "cat"}, nil
+						},
+					},
+					keyEvent: tcell.NewEventKey(tcell.KeyTab, emptyRune, tcell.ModNone),
+				},
+				want: finder{
+					allRows: []finderRow{
+						{visible: true, index: 0, value: "dog"},
+						{visible: true, index: 1, value: "cat"},
+					},
+				},
+			},
+			{
+				name: "live reloading doesn't show any rows anymore",
+				args: args{
+					finder: finder{
+						allRows: []finderRow{
+							{visible: true, index: 0, value: "apple"},
+						},
+						liveReloading: func(row int, query string) ([]string, error) {
+							return nil, nil
+						},
+					},
+					keyEvent: tcell.NewEventKey(tcell.KeyTab, emptyRune, tcell.ModNone),
+				},
+				want: finder{
+					allRows: []finderRow{
+						{visible: true, selected: true, index: 0, value: "apple"},
+					},
+				},
+			},
+			{
+				name: "live reloading causes an error",
+				args: args{
+					finder: finder{
+						allRows: []finderRow{
+							{visible: true, index: 0, value: "apple"},
+						},
+						liveReloading: func(row int, query string) ([]string, error) {
+							return nil, errors.New("error")
+						},
+					},
+					keyEvent: tcell.NewEventKey(tcell.KeyTab, emptyRune, tcell.ModNone),
+				},
+				want: finder{
+					allRows: []finderRow{
+						{visible: true, index: 0, value: "apple"},
+					},
+				},
+				wantErr:  errors.New("error"),
+				wantDone: true,
+			},
 		}
 
 		for _, tc := range testCases {
@@ -476,8 +551,14 @@ func TestComplete_handleKeyEvent(t *testing.T) {
 				c := &TcellCompletion{
 					logger: zap.NewNop(),
 				}
-				got, gotDone := c.handleKeyEvent(tc.args.finder, tc.args.keyEvent.(*tcell.EventKey))
+				got, gotErr, gotDone := c.handleKeyEvent(tc.args.finder, tc.args.keyEvent.(*tcell.EventKey))
+
+				// Set nil because functions cannot be compared: https://github.com/stretchr/testify/issues/182
+				got.liveReloading = nil
+				tc.want.liveReloading = nil
+
 				assert.Equal(t, tc.want, got)
+				assert.Equal(t, tc.wantErr, gotErr)
 				assert.Equal(t, tc.wantDone, gotDone)
 			})
 		}
@@ -488,6 +569,7 @@ func TestComplete_handleKeyEvent(t *testing.T) {
 			name     string
 			args     args
 			want     finder
+			wantErr  error
 			wantDone bool
 		}{
 			{
@@ -497,6 +579,9 @@ func TestComplete_handleKeyEvent(t *testing.T) {
 						allRows: []finderRow{
 							{visible: true, index: 0, value: "apple"},
 							{visible: true, index: 1, value: "banana"},
+						},
+						liveReloading: func(row int, query string) ([]string, error) {
+							panic("shouldn't be called")
 						},
 					},
 					keyEvent: tcell.NewEventKey(tcell.KeyTab, emptyRune, tcell.ModNone),
@@ -545,6 +630,24 @@ func TestComplete_handleKeyEvent(t *testing.T) {
 					cursorRow: 0,
 				},
 			},
+			{
+				name: "pressing tab key if no available item",
+				args: args{
+					finder: finder{
+						allRows: []finderRow{
+							{visible: false, index: 0, value: "apple"},
+						},
+						query: "b",
+					},
+					keyEvent: tcell.NewEventKey(tcell.KeyTab, emptyRune, tcell.ModNone),
+				},
+				want: finder{
+					allRows: []finderRow{
+						{visible: false, index: 0, value: "apple"},
+					},
+					query: "b",
+				},
+			},
 		}
 
 		for _, tc := range testCases {
@@ -555,8 +658,13 @@ func TestComplete_handleKeyEvent(t *testing.T) {
 
 				tc.args.finder.isMultiSelectMode = true
 				tc.want.isMultiSelectMode = true
-				got, gotDone := c.handleKeyEvent(tc.args.finder, tc.args.keyEvent.(*tcell.EventKey))
+				got, gotErr, gotDone := c.handleKeyEvent(tc.args.finder, tc.args.keyEvent.(*tcell.EventKey))
+
+				// Set nil because functions cannot be compared: https://github.com/stretchr/testify/issues/182
+				got.liveReloading = nil
+				tc.want.liveReloading = nil
 				assert.Equal(t, tc.want, got)
+				assert.Equal(t, tc.wantErr, gotErr)
 				assert.Equal(t, tc.wantDone, gotDone)
 			})
 		}
