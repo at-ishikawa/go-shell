@@ -17,12 +17,14 @@ type Completion interface {
 }
 
 type PreviewCommandType func(row int) (string, error)
+type LiveReloading func(row int, query string) ([]string, error)
 
 type CompleteOptions struct {
 	PreviewCommand PreviewCommandType
 	Header         string
 	InitialQuery   string
 	IsAnsiColor    bool
+	LiveReloading  LiveReloading
 }
 
 type finder struct {
@@ -34,10 +36,11 @@ type finder struct {
 
 	query             string
 	previewCommand    PreviewCommandType
+	liveReloading     LiveReloading
 	isMultiSelectMode bool
 }
 
-func newFinder(rows []string, options CompleteOptions, isMultiSelectMode bool) finder {
+func (f *finder) setRows(rows []string) {
 	allRows := make([]finderRow, 0, len(rows))
 	for index, r := range rows {
 		allRows = append(allRows, finderRow{
@@ -46,15 +49,23 @@ func newFinder(rows []string, options CompleteOptions, isMultiSelectMode bool) f
 			value:   r,
 		})
 	}
+	f.allRows = allRows
 
+	if f.cursorRow >= len(f.getVisibleRows()) {
+		f.cursorRow = len(f.getVisibleRows()) - 1
+	}
+}
+
+func newFinder(rows []string, options CompleteOptions, isMultiSelectMode bool) finder {
 	f := finder{
-		header:  options.Header,
-		allRows: allRows,
+		header: options.Header,
 
 		query:             options.InitialQuery,
 		previewCommand:    options.PreviewCommand,
+		liveReloading:     options.LiveReloading,
 		isMultiSelectMode: isMultiSelectMode,
 	}
+	f.setRows(rows)
 	f.updateQuery(options.InitialQuery)
 	return f
 }
@@ -133,6 +144,25 @@ func NewTcellCompletion() (*TcellCompletion, error) {
 }
 
 func (complete *TcellCompletion) CompleteMulti(rows []string, options CompleteOptions) ([]string, error) {
+	if options.LiveReloading != nil {
+		panic("not implemented")
+	}
+
+	return complete.start(rows, options, true)
+}
+
+func (complete TcellCompletion) Complete(rows []string, options CompleteOptions) (string, error) {
+	result, err := complete.start(rows, options, false)
+	if err != nil {
+		return "", fmt.Errorf("failed TcellCompletion.complete(): %w", err)
+	}
+	if len(result) == 0 {
+		return "", nil
+	}
+	return result[0], nil
+}
+
+func (complete TcellCompletion) start(rows []string, options CompleteOptions, isMultiSelectMode bool) ([]string, error) {
 	screen, err := tcell.NewScreen()
 	if err != nil {
 		return nil, fmt.Errorf("failed tcell.NewScreen: %w", err)
@@ -142,27 +172,7 @@ func (complete *TcellCompletion) CompleteMulti(rows []string, options CompleteOp
 	}
 	defer screen.Fini()
 
-	return complete.complete(screen, rows, options, true)
-}
-
-func (complete TcellCompletion) Complete(rows []string, options CompleteOptions) (string, error) {
-	screen, err := tcell.NewScreen()
-	if err != nil {
-		return "", fmt.Errorf("failed tcell.NewScreen: %w", err)
-	}
-	if err := screen.Init(); err != nil {
-		return "", fmt.Errorf("failed screen.Init(): %w", err)
-	}
-	defer screen.Fini()
-
-	result, err := complete.complete(screen, rows, options, false)
-	if err != nil {
-		return "", fmt.Errorf("failed TcellCompletion.complete(): %w", err)
-	}
-	if len(result) == 0 {
-		return "", nil
-	}
-	return result[0], nil
+	return complete.complete(screen, rows, options, isMultiSelectMode)
 }
 
 func emitStr(s tcell.Screen, x, y int, style tcell.Style, str string) int {
@@ -287,13 +297,17 @@ func (complete TcellCompletion) complete(screen tcell.Screen, rows []string, opt
 	complete.showVisibleRows(screen, currentFinder)
 	complete.showPreview(screen, options.PreviewCommand, visibleRows, currentFinder.cursorRow)
 
+	var err error
 	eg := errgroup.Group{}
 loop:
 	for {
 		switch event := screen.PollEvent().(type) {
 		case *tcell.EventKey:
 			var done bool
-			currentFinder, done = complete.handleKeyEvent(currentFinder, event)
+			currentFinder, err, done = complete.handleKeyEvent(currentFinder, event)
+			if err != nil {
+				break loop
+			}
 			if done {
 				break loop
 			}
@@ -312,6 +326,9 @@ loop:
 	if err := eg.Wait(); err != nil {
 		return nil, err
 	}
+	if err != nil {
+		return nil, err
+	}
 
 	result := make([]string, 0, len(currentFinder.allRows))
 	for _, row := range currentFinder.allRows {
@@ -326,7 +343,9 @@ loop:
 	return result, nil
 }
 
-func (complete TcellCompletion) handleKeyEvent(currentFinder finder, event *tcell.EventKey) (finder, bool) {
+func (complete TcellCompletion) handleKeyEvent(currentFinder finder, event *tcell.EventKey) (finder, error, bool) {
+	var done bool
+
 	visibleRows := currentFinder.getVisibleRows()
 	cursorRow := currentFinder.cursorRow
 	allRows := currentFinder.allRows
@@ -334,19 +353,40 @@ func (complete TcellCompletion) handleKeyEvent(currentFinder finder, event *tcel
 
 	switch event.Key() {
 	case tcell.KeyTAB:
-		if !currentFinder.isMultiSelectMode {
+		if !currentFinder.isMultiSelectMode && currentFinder.liveReloading == nil {
 			// disable a tab key for a single selection mode
+			break
+		}
+		if cursorRow >= len(visibleRows) {
 			break
 		}
 
 		index := visibleRows[cursorRow].index
-		allRows[index].selected = !allRows[index].selected
-		currentFinder.allRows = allRows
-		if cursorRow < len(visibleRows)-1 {
-			currentFinder.cursorRow++
+		if currentFinder.isMultiSelectMode {
+			allRows[index].selected = !allRows[index].selected
+			currentFinder.allRows = allRows
+			if cursorRow < len(visibleRows)-1 {
+				currentFinder.cursorRow++
+			}
+			break
 		}
+
+		if currentFinder.liveReloading != nil {
+			rows, err := currentFinder.liveReloading(index, visibleRows[cursorRow].value)
+			if err != nil {
+				return currentFinder, err, true
+			}
+			if len(rows) > 0 {
+				currentFinder.setRows(rows)
+			} else {
+				index := visibleRows[cursorRow].index
+				allRows[index].selected = !allRows[index].selected
+			}
+			break
+		}
+
 	case tcell.KeyCtrlC:
-		return currentFinder, true
+		done = true
 
 	case tcell.KeyEnter:
 		if cursorRow < len(visibleRows) {
@@ -354,7 +394,8 @@ func (complete TcellCompletion) handleKeyEvent(currentFinder finder, event *tcel
 			allRows[index].selected = true
 			currentFinder.allRows = allRows
 		}
-		return currentFinder, true
+		done = true
+
 	case tcell.KeyCtrlP:
 		if cursorRow > 0 {
 			currentFinder.cursorRow--
@@ -391,5 +432,5 @@ func (complete TcellCompletion) handleKeyEvent(currentFinder finder, event *tcel
 		}
 	}
 
-	return currentFinder, false
+	return currentFinder, nil, done
 }
