@@ -9,29 +9,33 @@ import (
 	"github.com/at-ishikawa/go-shell/internal/completion"
 )
 
-type FilePlugin struct {
+type DefaultPlugin struct {
 	completionUi completion.Completion
 	homeDir      string
 }
 
-var _ Plugin = (*FilePlugin)(nil)
+var _ Plugin = (*DefaultPlugin)(nil)
 
-func NewFilePlugin(completionUi completion.Completion, homeDir string) Plugin {
-	return &FilePlugin{
+func NewDefaultPlugin(completionUi completion.Completion, homeDir string) Plugin {
+	return &DefaultPlugin{
 		completionUi: completionUi,
 		homeDir:      homeDir,
 	}
 }
 
-func (f FilePlugin) Command() string {
+func (f DefaultPlugin) Command() string {
 	return ""
 }
 
-func (f FilePlugin) GetContext(_ string) (map[string]string, error) {
+func (f DefaultPlugin) GetContext(_ string) (map[string]string, error) {
 	return nil, nil
 }
 
-func (f FilePlugin) Suggest(arg SuggestArg) ([]string, error) {
+func (f DefaultPlugin) Suggest(arg SuggestArg) ([]string, error) {
+	// Suggest based on
+	// 1. history
+	// 2. files
+
 	suggestedValuesFromHistory, err := arg.GetSuggestedValues()
 	if err != nil {
 		return []string{}, fmt.Errorf("arg.GetSuggestedValues failed: %w", err)
@@ -51,6 +55,9 @@ func (f FilePlugin) Suggest(arg SuggestArg) ([]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("f.readDirectory failed: %w", err)
 	}
+	for _, suggestedValueFromhistory := range suggestedValuesFromHistory {
+		suggestedValues = append([]string{suggestedValueFromhistory}, suggestedValues...)
+	}
 
 	file, err := f.completionUi.Complete(suggestedValues, completion.CompleteOptions{
 		InitialQuery: query,
@@ -68,7 +75,7 @@ func (f FilePlugin) Suggest(arg SuggestArg) ([]string, error) {
 	return []string{file}, nil
 }
 
-func (f FilePlugin) readDirectory(directory string, suggestedValuesFromHistory []string) ([]string, error) {
+func (f DefaultPlugin) readDirectory(directory string, suggestedValuesFromHistory []string) ([]string, error) {
 	currentDirectory := filepath.Dir(directory)
 	entries, err := os.ReadDir(strings.ReplaceAll(currentDirectory, "~", f.homeDir))
 	if err != nil {

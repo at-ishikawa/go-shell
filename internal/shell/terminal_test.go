@@ -950,7 +950,7 @@ func TestTerminal_HandleShortcutKey(t *testing.T) {
 			inputCommand string
 			keyEvent     keyboard.KeyEvent
 
-			mockDefaultPlugin func(mockPlugin *plugin.MockPlugin)
+			mockCommandSuggester func(mockController *gomock.Controller) commandSuggester
 
 			wantCommand          string
 			wantCursor           int
@@ -958,24 +958,56 @@ func TestTerminal_HandleShortcutKey(t *testing.T) {
 			wantErr              error
 		}{
 			{
-				name: "No command. No suggest",
+				name: "No command. default plugin",
 				keyEvent: keyboard.KeyEvent{
 					KeyCode: keyboard.Tab,
 				},
-				mockDefaultPlugin: func(mockPlugin *plugin.MockPlugin) {
-					mockPlugin.EXPECT().Suggest(gomock.Any()).Times(0)
+				mockCommandSuggester: func(mockController *gomock.Controller) commandSuggester {
+					mockPlugin := plugin.NewMockPlugin(mockController)
+					mockPlugin.EXPECT().Suggest(gomock.Any()).Return([]string{"cd"}, nil).Times(1)
+					mockCommandSuggester := commandSuggester{
+						defaultPlugin: mockPlugin,
+					}
+					return mockCommandSuggester
 				},
+				wantCommand: "cd ",
 			},
 			{
-				name: "default suggest",
+				name: "no supported plugin for a command. fallback to the default plugin",
 
 				inputCommand: "ls ",
 				keyEvent: keyboard.KeyEvent{
 					KeyCode: keyboard.Tab,
 				},
 
-				mockDefaultPlugin: func(mockPlugin *plugin.MockPlugin) {
+				mockCommandSuggester: func(mockController *gomock.Controller) commandSuggester {
+					mockPlugin := plugin.NewMockPlugin(mockController)
 					mockPlugin.EXPECT().Suggest(gomock.Any()).Return([]string{"/tmp"}, nil).Times(1)
+					mockCommandSuggester := commandSuggester{
+						defaultPlugin: mockPlugin,
+					}
+					return mockCommandSuggester
+				},
+
+				wantCommand: "ls /tmp ",
+			},
+			{
+				name: "supported plugin for a command",
+
+				inputCommand: "ls ",
+				keyEvent: keyboard.KeyEvent{
+					KeyCode: keyboard.Tab,
+				},
+
+				mockCommandSuggester: func(mockController *gomock.Controller) commandSuggester {
+					mockPlugin := plugin.NewMockPlugin(mockController)
+					mockPlugin.EXPECT().Suggest(gomock.Any()).Return([]string{"/tmp"}, nil).Times(1)
+					mockCommandSuggester := commandSuggester{
+						plugins: map[string]plugin.Plugin{
+							"ls": mockPlugin,
+						},
+					}
+					return mockCommandSuggester
 				},
 
 				wantCommand: "ls /tmp ",
@@ -985,11 +1017,7 @@ func TestTerminal_HandleShortcutKey(t *testing.T) {
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
 				mockController := gomock.NewController(t)
-				mockPlugin := plugin.NewMockPlugin(mockController)
-				tc.mockDefaultPlugin(mockPlugin)
-				suggester := commandSuggester{
-					defaultPlugin: mockPlugin,
-				}
+				suggester := tc.mockCommandSuggester(mockController)
 				tc.terminal.commandSuggester = suggester
 
 				gotLine, gotErr := tc.terminal.handleShortcutKey(tc.inputCommand, tc.keyEvent)
