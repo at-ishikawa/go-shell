@@ -405,10 +405,6 @@ func (term *terminal) getInputCommand() (string, error) {
 }
 
 func (term *terminal) suggest(inputCommand string, suggestFunc func(plugin.SuggestArg) ([]string, error)) (string, error) {
-	if strings.TrimSpace(inputCommand) == "" {
-		return inputCommand, nil
-	}
-
 	// move these logics to terminal
 	var currentArgToken string
 	var previousArgs string

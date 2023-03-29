@@ -36,7 +36,7 @@ func newCommandSuggester(history *config.History, homeDir string, logger *zap.Lo
 	return commandSuggester{
 		history:       history,
 		plugins:       plugins,
-		defaultPlugin: plugin.NewFilePlugin(tcellCompletionUi, homeDir),
+		defaultPlugin: plugin.NewDefaultPlugin(tcellCompletionUi, homeDir),
 		historyPlugin: plugin.NewHistoryPlugin(plugins, tcellCompletionUi, logger),
 	}, nil
 }
@@ -48,7 +48,7 @@ func (s commandSuggester) suggestHistory(args plugin.SuggestArg) ([]string, erro
 func (s commandSuggester) suggestCommand(inputCommand string, pluginArgs plugin.SuggestArg) ([]string, error) {
 	args := strings.Fields(inputCommand)
 	if len(args) == 0 {
-		return []string{inputCommand}, nil
+		return s.defaultPlugin.Suggest(pluginArgs)
 	}
 
 	suggestPlugin, ok := s.plugins[args[0]]

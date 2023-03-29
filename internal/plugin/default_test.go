@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestFilePlugin_readDirectory(t *testing.T) {
+func TestDefaultPlugin_readDirectory(t *testing.T) {
 	osTempDir := os.TempDir()
 	tempDir, err := os.MkdirTemp(osTempDir, "go-shell-test-")
 	require.NoError(t, err)
@@ -109,7 +109,7 @@ func TestFilePlugin_readDirectory(t *testing.T) {
 				})
 			}
 
-			f := &FilePlugin{
+			f := &DefaultPlugin{
 				homeDir: tc.fields.homeDir,
 			}
 			got, gotErr := f.readDirectory(tc.args.query, tc.args.suggestedValuesFromHistory)
