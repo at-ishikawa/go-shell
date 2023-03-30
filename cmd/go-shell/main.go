@@ -13,16 +13,10 @@ func main() {
 
 	rootCommand := &cobra.Command{
 		RunE: func(cmd *cobra.Command, args []string) error {
-			tty, err := os.OpenFile("/dev/tty", os.O_RDWR, 0600)
-			if err != nil {
-				return err
-			}
-			defer tty.Close()
-
 			s, err := shell.NewShell(
-				tty,
-				tty,
-				tty,
+				os.Stdin,
+				os.Stdout,
+				os.Stderr,
 				commandLineOptions,
 			)
 			if err != nil {

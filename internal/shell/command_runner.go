@@ -1,12 +1,9 @@
 package shell
 
 import (
-	"fmt"
 	"os"
 	"os/exec"
-	"os/signal"
 	"strings"
-	"syscall"
 )
 
 type commandRunner struct {
@@ -89,29 +86,7 @@ func (cr commandRunner) run(inputCommand string, commandFactory func(name string
 	}
 
 	cmd := commandFactory(command, args...)
-	cmd.SysProcAttr = &syscall.SysProcAttr{
-		Setpgid: true,
-	}
-
-	errCh := make(chan error)
-	defer close(errCh)
-	go func() {
-		errCh <- cmd.Run()
-	}()
-
-	interuptSignals := make(chan os.Signal, 1)
-	defer signal.Stop(interuptSignals)
-	signal.Notify(interuptSignals, os.Interrupt)
-	go func() {
-		sig := <-interuptSignals
-		if err := cmd.Process.Signal(sig); err != nil {
-			// todo: replace os.Stderr with tty
-			fmt.Fprintf(os.Stderr, "failed cmd.Process.Signal: ")
-			fmt.Fprintln(os.Stderr, err)
-		}
-	}()
-
-	if err := <-errCh; err != nil {
+	if err := cmd.Run(); err != nil {
 		// var exitError *exec.ExitError
 		// if errors.As(err, &exitError) {
 		if exitError, ok := err.(*exec.ExitError); ok {

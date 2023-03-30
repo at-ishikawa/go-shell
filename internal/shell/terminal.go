@@ -146,7 +146,7 @@ func (term *terminal) start(f func(inputCommand string) (int, error)) error {
 func (term terminal) commandFactory() func(name string, args ...string) *exec.Cmd {
 	return func(name string, args ...string) *exec.Cmd {
 		command := exec.Command(name, args...)
-		// command.Stdin = term.in.file
+		command.Stdin = term.in.file
 		command.Stdout = term.out.file
 		command.Stderr = term.stdErr.file
 		return command
