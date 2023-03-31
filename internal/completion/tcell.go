@@ -1,8 +1,13 @@
 package completion
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"strings"
+	"sync"
+	"sync/atomic"
+	"time"
 
 	"github.com/at-ishikawa/go-shell/internal/ansi"
 	"github.com/gdamore/tcell/v2"
@@ -182,34 +187,43 @@ func emitStr(s tcell.Screen, x, y int, style tcell.Style, str string) int {
 	return x
 }
 
-func (complete TcellCompletion) showPreview(
-	screen tcell.Screen,
-	previewCommand PreviewCommandType,
-	visibleRows []finderRow,
-	cursorRow int,
-) {
-	if previewCommand == nil {
-		return
+func (f finder) runPreview() ([]string, error) {
+	if f.previewCommand == nil {
+		return nil, nil
 	}
+	visibleRows := f.getVisibleRows()
 	if len(visibleRows) == 0 {
-		return
+		return nil, nil
 	}
-	if cursorRow >= len(visibleRows) {
-		return
+	if f.cursorRow >= len(visibleRows) {
+		return nil, nil
 	}
-	if cursorRow < 0 {
-		return
+	if f.cursorRow < 0 {
+		return nil, nil
 	}
+	previewResult, err := f.previewCommand(visibleRows[f.cursorRow].index)
+	if err != nil {
+		return nil, err
+	}
+	lines := strings.Split(previewResult, "\n")
+	return lines, nil
+}
 
+func (complete *tcellRenderer) renderPreviewResult(ctx context.Context, screen tcell.Screen, lines []string, err error) {
 	_, height := screen.Size()
-	previewResult, err := previewCommand(visibleRows[cursorRow].index)
 	if err != nil {
 		emitStr(screen, 2, height/2, tcell.StyleDefault, err.Error())
 		return
 	}
 
-	lines := strings.Split(previewResult, "\n")
 	for i, line := range lines {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+			break
+		}
+
 		y := height/2 + i
 		if y > height {
 			break
@@ -225,7 +239,7 @@ func (complete TcellCompletion) showPreview(
 	screen.Show()
 }
 
-func (complete TcellCompletion) showVisibleRows(screen tcell.Screen, currentFinder finder) {
+func (complete *tcellRenderer) showVisibleRows(screen tcell.Screen, currentFinder finder) {
 	width, _ := screen.Size()
 	prompt := fmt.Sprintf("> %s", currentFinder.query)
 	currentX := emitStr(screen, 0, 0, tcell.StyleDefault, prompt)
@@ -258,6 +272,69 @@ func (complete TcellCompletion) showVisibleRows(screen tcell.Screen, currentFind
 	screen.Show()
 }
 
+type tcellRenderer struct {
+	screen    tcell.Screen
+	isDone    atomic.Bool
+	isUpdated atomic.Bool
+	mutex     sync.Mutex
+	latestJob finder
+}
+
+func newRenderer(screen tcell.Screen) *tcellRenderer {
+	return &tcellRenderer{
+		screen: screen,
+	}
+}
+
+func (renderer *tcellRenderer) finish() {
+	renderer.isDone.Store(true)
+}
+
+func (renderer *tcellRenderer) requestNewRenderer(latestJob finder) {
+	renderer.mutex.Lock()
+	renderer.latestJob = latestJob
+	renderer.mutex.Unlock()
+	renderer.isUpdated.Store(true)
+}
+
+func (renderer *tcellRenderer) start(ctx context.Context) func() error {
+	screen := renderer.screen
+	screen.SetCursorStyle(tcell.CursorStyleDefault)
+
+	return func() error {
+		childEg, childEgCtx := errgroup.WithContext(ctx)
+		childCtx, cancel := context.WithCancel(childEgCtx)
+
+		for {
+			if renderer.isDone.Load() {
+				break
+			}
+			if renderer.isUpdated.Load() {
+				renderer.isUpdated.Store(false)
+				renderer.mutex.Lock()
+				finder := renderer.latestJob
+				renderer.mutex.Unlock()
+
+				// cancel previous rendering
+				cancel()
+				childCtx, cancel = context.WithCancel(childEgCtx)
+
+				screen.Sync()
+				screen.Clear()
+				renderer.showVisibleRows(screen, finder)
+				childEg.Go(func() error {
+					lines, err := finder.runPreview()
+					renderer.renderPreviewResult(childCtx, screen, lines, err)
+					return nil
+				})
+			}
+			time.Sleep(50 * time.Millisecond)
+		}
+		cancel()
+		return childEg.Wait()
+	}
+}
+
 func (complete TcellCompletion) complete(screen tcell.Screen, rows []string, options CompleteOptions, isMultiSelectMode bool) ([]string, error) {
 	rows = func(rows []string) []string {
 		result := make([]string, 0, len(rows))
@@ -274,44 +351,37 @@ func (complete TcellCompletion) complete(screen tcell.Screen, rows []string, opt
 		return nil, nil
 	}
 
-	screen.SetCursorStyle(tcell.CursorStyleDefault)
 	currentFinder := newFinder(rows, options, isMultiSelectMode)
-	visibleRows := currentFinder.getVisibleRows()
+	renderer := newRenderer(screen)
+	renderer.requestNewRenderer(currentFinder)
 
-	complete.showVisibleRows(screen, currentFinder)
-	complete.showPreview(screen, options.PreviewCommand, visibleRows, currentFinder.cursorRow)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	eg, egCtx := errgroup.WithContext(ctx)
+	eg.Go(renderer.start(egCtx))
 
-	var err error
-	eg := errgroup.Group{}
+	var keyEventErr error
 loop:
 	for {
 		switch event := screen.PollEvent().(type) {
 		case *tcell.EventKey:
-			var done bool
-			currentFinder, err, done = complete.handleKeyEvent(currentFinder, event)
+			f, err, done := complete.handleKeyEvent(currentFinder, event)
 			if err != nil {
+				keyEventErr = err
 				break loop
 			}
 			if done {
 				break loop
 			}
 
-			cursorRow := currentFinder.cursorRow
-			visibleRows := currentFinder.getVisibleRows()
-			eg.Go(func() error {
-				screen.Sync()
-				screen.Clear()
-				complete.showVisibleRows(screen, currentFinder)
-				complete.showPreview(screen, options.PreviewCommand, visibleRows, cursorRow)
-				return nil
-			})
+			currentFinder = f
+			renderer.requestNewRenderer(f)
+		default:
 		}
 	}
-	if err := eg.Wait(); err != nil {
-		return nil, err
-	}
-	if err != nil {
-		return nil, err
+	renderer.finish()
+	if egErr := eg.Wait(); keyEventErr != nil || egErr != nil {
+		return nil, errors.Join(keyEventErr, egErr)
 	}
 
 	result := make([]string, 0, len(currentFinder.allRows))
@@ -321,6 +391,7 @@ loop:
 		}
 		result = append(result, row.value)
 	}
+
 	if len(result) == 0 {
 		return nil, nil
 	}
