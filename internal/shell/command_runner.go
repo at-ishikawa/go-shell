@@ -92,7 +92,7 @@ func (cr commandRunner) run(inputCommand string, commandFactory func(name string
 		if exitError, ok := err.(*exec.ExitError); ok {
 			exitCode := exitError.ExitCode()
 			// Don't show a message when a command was canceled by an interruption
-			if exitError.String() == "signal: interrupt" {
+			if strings.HasPrefix(exitError.String(), "signal:") {
 				return exitCode, nil
 			}
 			return exitCode, err
