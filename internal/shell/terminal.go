@@ -88,9 +88,17 @@ func (term *terminal) readPrompt() (string, error) {
 }
 
 func (term *terminal) start(f func(inputCommand string) (int, error)) error {
-	var historyChannel chan struct{}
+	interuptSignals := make(chan os.Signal, 1)
+	defer signal.Stop(interuptSignals)
+	signal.Notify(interuptSignals, syscall.SIGINT)
 
+	var historyChannel chan struct{}
 	for {
+		go func() {
+			// Don't cancel a shell when the child command is canceled
+			<-interuptSignals
+		}()
+
 		prompt, err := term.readPrompt()
 		if err != nil {
 			fmt.Println(err)
@@ -101,7 +109,7 @@ func (term *terminal) start(f func(inputCommand string) (int, error)) error {
 
 		inputCommand, err := term.getInputCommand()
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
+			fmt.Fprintln(term.stdErr.file, err)
 			continue
 		}
 		inputCommand = strings.TrimSpace(inputCommand)
@@ -118,7 +126,7 @@ func (term *terminal) start(f func(inputCommand string) (int, error)) error {
 		}
 		exitCode, err := f(inputCommand)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
+			fmt.Fprintln(term.stdErr.file, err)
 		}
 		if err := term.makeRaw(); err != nil {
 			panic(err)
@@ -146,7 +154,7 @@ func (term *terminal) start(f func(inputCommand string) (int, error)) error {
 func (term terminal) commandFactory() func(name string, args ...string) *exec.Cmd {
 	return func(name string, args ...string) *exec.Cmd {
 		command := exec.Command(name, args...)
-		// command.Stdin = term.in.file
+		command.Stdin = term.in.file
 		command.Stdout = term.out.file
 		command.Stderr = term.stdErr.file
 		return command
@@ -353,11 +361,6 @@ func (term *terminal) getInputCommand() (string, error) {
 	term.out.setCursor(0)
 
 	term.candidateCommand = ""
-
-	interuptSignals := make(chan os.Signal, 1)
-	defer signal.Stop(interuptSignals)
-	signal.Notify(interuptSignals, syscall.SIGINT)
-
 	inputCommand := ""
 	for {
 		keyEvent, err := term.in.Read()
@@ -383,10 +386,6 @@ func (term *terminal) getInputCommand() (string, error) {
 			break
 		}
 
-		go func() {
-			// Don't cancel a shell when the child command is canceled
-			<-interuptSignals
-		}()
 		inputCommand, err = term.handleShortcutKey(inputCommand, keyEvent)
 		if err != nil {
 			term.out.writeLine("", "")
