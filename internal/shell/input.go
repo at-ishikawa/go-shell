@@ -11,18 +11,20 @@ import (
 )
 
 type input struct {
-	fd        int
-	file      *os.File
-	termState *term.State
-	reader    io.Reader
+	fd         int
+	file       *os.File
+	termState  *term.State
+	reader     io.Reader
+	bufferSize int
 }
 
 func initInput(in *os.File) (input, error) {
 	reader := bufio.NewReader(in)
 	return input{
-		fd:     int(in.Fd()),
-		file:   in,
-		reader: reader,
+		fd:         int(in.Fd()),
+		file:       in,
+		reader:     reader,
+		bufferSize: 8,
 	}, nil
 }
 
@@ -42,7 +44,7 @@ func (i *input) finalize() error {
 }
 
 func (i *input) Read() (keyboard.KeyEvent, error) {
-	buffer := make([]byte, 8)
+	buffer := make([]byte, i.bufferSize)
 	bufferSize, err := i.reader.Read(buffer)
 	return keyboard.GetKeyEvent(buffer[:bufferSize]), err
 }

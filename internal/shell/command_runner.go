@@ -1,18 +1,24 @@
 package shell
 
 import (
+	"context"
+	"fmt"
 	"os"
 	"os/exec"
+	"os/signal"
 	"strings"
+	"syscall"
 )
 
 type commandRunner struct {
-	homeDir string
+	homeDir            string
+	execCommandContext func(context.Context, string, ...string) *exec.Cmd
 }
 
 func newCommandRunner(homeDir string) commandRunner {
 	return commandRunner{
-		homeDir: homeDir,
+		homeDir:            homeDir,
+		execCommandContext: exec.CommandContext,
 	}
 }
 
@@ -71,7 +77,7 @@ func (cr commandRunner) compileInput(inputCommand string) (string, []string) {
 	return command, args
 }
 
-func (cr commandRunner) run(inputCommand string, commandFactory func(name string, args ...string) *exec.Cmd) (int, error) {
+func (cr commandRunner) run(inputCommand string, term *terminal) (int, error) {
 	command, args := cr.compileInput(inputCommand)
 	if command == "" {
 		return 0, nil
@@ -85,8 +91,66 @@ func (cr commandRunner) run(inputCommand string, commandFactory func(name string
 		return 0, nil
 	}
 
-	cmd := commandFactory(command, args...)
-	if err := cmd.Run(); err != nil {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	cmd := cr.execCommandContext(ctx, command, args...)
+	cmd.Stdin = term.in.file
+	cmd.Stdout = term.out.file
+	cmd.Stderr = term.stdErr.file
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		Setpgid: true,
+	}
+
+	errCh := make(chan error)
+	defer close(errCh)
+	if err := cmd.Start(); err != nil {
+		if exitError, ok := err.(*exec.ExitError); ok {
+			exitCode := exitError.ExitCode()
+			return exitCode, err
+		}
+		return 1, err
+	}
+
+	stopSignals := make(chan os.Signal, 1)
+	defer signal.Stop(stopSignals)
+	// SIGINT: Control-C
+	signal.Notify(stopSignals, syscall.SIGINT)
+	go func() {
+		select {
+		case <-ctx.Done():
+		case sig := <-stopSignals:
+			if err := cmd.Process.Signal(sig); err != nil {
+				// todo: replace os.Stderr with tty
+				fmt.Fprintf(term.stdErr.file, "failed cmd.Process.Signal: %v\n", err)
+			}
+		}
+	}()
+
+	var paused bool
+	pauseSignals := make(chan os.Signal, 1)
+	defer signal.Stop(pauseSignals)
+	// SIGTSTP: Control-Z
+	signal.Notify(pauseSignals, syscall.SIGTSTP)
+	go func() {
+		select {
+		case <-ctx.Done():
+		case <-pauseSignals:
+			// don't make a panic in a goroutine. It's harder to check a result on a unit test
+			paused = true
+			if err := cmd.Process.Kill(); err != nil {
+				fmt.Fprintf(term.stdErr.file, "failed cmd.Process.Kill: %v\n", err)
+			} else {
+				fmt.Fprintf(term.out.file, "killed process: %s\n", command)
+			}
+		}
+	}()
+
+	if err := cmd.Wait(); err != nil {
+		if paused {
+			panic("Pausing a process has not been implemented yet")
+		}
+
 		// var exitError *exec.ExitError
 		// if errors.As(err, &exitError) {
 		if exitError, ok := err.(*exec.ExitError); ok {
@@ -99,6 +163,7 @@ func (cr commandRunner) run(inputCommand string, commandFactory func(name string
 		}
 		return 1, err
 	}
+
 	return 0, nil
 }
 

@@ -27,17 +27,12 @@ jobs:
             gcc
 
       - name: Setup Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v4
         with:
           go-version: ${{ matrix.go-version }}
       - name: Install dependencies
         run: go get ./...
-      - name: Test with Go
-        run: go test ./... -json > TestResults-${{ matrix.go-version }}.json
-      - name: Upload Go test results
-        uses: actions/upload-artifact@v3
-        # TODO: Enable to upload artifacts on https://github.com/nektos/act/issues/169
-        if: ${{ !env.ACT }}
-        with:
-          name: Go-results-${{ matrix.go-version }}
-          path: TestResults-${{ matrix.go-version }}.json
+      - name: Build
+        run: go build -v ./...
+      - name: Test
+        run: go test -v ./...
