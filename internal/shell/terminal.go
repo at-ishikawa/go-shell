@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"os/signal"
 	"strings"
 	"syscall"
@@ -88,17 +87,18 @@ func (term *terminal) readPrompt() (string, error) {
 }
 
 func (term *terminal) start(f func(inputCommand string) (int, error)) error {
-	interuptSignals := make(chan os.Signal, 1)
-	defer signal.Stop(interuptSignals)
-	signal.Notify(interuptSignals, syscall.SIGINT)
+	interruptSignals := make(chan os.Signal, 1)
+	defer signal.Stop(interruptSignals)
+	signal.Notify(interruptSignals, syscall.SIGINT)
+	go func() {
+		// Don't cancel a shell when the child command is canceled
+		for {
+			<-interruptSignals
+		}
+	}()
 
 	var historyChannel chan struct{}
 	for {
-		go func() {
-			// Don't cancel a shell when the child command is canceled
-			<-interuptSignals
-		}()
-
 		prompt, err := term.readPrompt()
 		if err != nil {
 			fmt.Println(err)
@@ -120,16 +120,9 @@ func (term *terminal) start(f func(inputCommand string) (int, error)) error {
 			break
 		}
 
-		// For some reason, term.Restore for an input is required before executing a command
-		if err := term.restore(); err != nil {
-			panic(err)
-		}
 		exitCode, err := f(inputCommand)
 		if err != nil {
 			fmt.Fprintln(term.stdErr.file, err)
-		}
-		if err := term.makeRaw(); err != nil {
-			panic(err)
 		}
 
 		context, err := term.commandSuggester.getContext(inputCommand)
@@ -149,16 +142,6 @@ func (term *terminal) start(f func(inputCommand string) (int, error)) error {
 	}
 
 	return nil
-}
-
-func (term terminal) commandFactory() func(name string, args ...string) *exec.Cmd {
-	return func(name string, args ...string) *exec.Cmd {
-		command := exec.Command(name, args...)
-		command.Stdin = term.in.file
-		command.Stdout = term.out.file
-		command.Stderr = term.stdErr.file
-		return command
-	}
 }
 
 func (term *terminal) updateInputCommand(str string) string {

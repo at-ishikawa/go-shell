@@ -100,7 +100,25 @@ func (s Shell) Run() error {
 		return err
 	}
 
+	invalidateTermRaw := func(f func() (int, error)) (int, error) {
+		// For some reason, term.Restore for an input is required before executing a command
+		if err := s.terminal.restore(); err != nil {
+			panic(err)
+		}
+		exitCode, err := f()
+		if err := s.terminal.makeRaw(); err != nil {
+			panic(err)
+		}
+
+		return exitCode, err
+	}
+	return s.run(invalidateTermRaw)
+}
+
+func (s Shell) run(wrapped func(func() (int, error)) (int, error)) error {
 	return s.terminal.start(func(inputCommand string) (int, error) {
-		return s.commandRunner.run(inputCommand, s.terminal.commandFactory())
+		return wrapped(func() (int, error) {
+			return s.commandRunner.run(inputCommand, &s.terminal)
+		})
 	})
 }

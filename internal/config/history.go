@@ -92,6 +92,10 @@ func (h *History) Sync(
 ) chan struct{} {
 	ch := make(chan struct{})
 	go func() {
+		defer func() {
+			ch <- struct{}{}
+		}()
+
 		if err := h.LoadFile(); err != nil {
 			logger.Error("Failed to load a history file",
 				zap.Error(err),
@@ -112,7 +116,6 @@ func (h *History) Sync(
 			)
 			return
 		}
-		ch <- struct{}{}
 	}()
 
 	return ch

@@ -1,5 +1,7 @@
 # Go Shell
 
+[![Test](https://github.com/at-ishikawa/go-shell/actions/workflows/test.yml/badge.svg)](https://github.com/at-ishikawa/go-shell/actions/workflows/test.yml)
+
 This is still under development.
 
 # Dependencies

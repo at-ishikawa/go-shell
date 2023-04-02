@@ -102,7 +102,8 @@ func TestTerminal_getInputCommand(t *testing.T) {
 			term := terminal{
 				in: input{
 					// Currently, this only reads the first letter
-					reader: bufio.NewReaderSize(bytes.NewReader(tc.keyCodes.Bytes()), 1),
+					reader:     bufio.NewReaderSize(bytes.NewReader(tc.keyCodes.Bytes()), 1),
+					bufferSize: 8,
 				},
 				logger: zap.NewNop(),
 			}
