@@ -488,6 +488,7 @@ func TestComplete_handleKeyEvent(t *testing.T) {
 				name: "live reloading updates all rows",
 				args: args{
 					finder: finder{
+						query: "ap",
 						allRows: []finderRow{
 							{visible: true, index: 0, value: "apple"},
 						},
@@ -498,6 +499,7 @@ func TestComplete_handleKeyEvent(t *testing.T) {
 					keyEvent: tcell.NewEventKey(tcell.KeyTab, emptyRune, tcell.ModNone),
 				},
 				want: finder{
+					// query: "ap",
 					allRows: []finderRow{
 						{visible: true, index: 0, value: "dog"},
 						{visible: true, index: 1, value: "cat"},
