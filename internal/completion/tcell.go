@@ -378,6 +378,7 @@ func (complete TcellCompletion) handleKeyEvent(currentFinder finder, event *tcel
 			}
 			if len(rows) > 0 {
 				currentFinder.setRows(rows)
+				currentFinder.updateQuery("")
 			} else {
 				index := visibleRows[cursorRow].index
 				allRows[index].selected = !allRows[index].selected
