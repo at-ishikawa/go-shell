@@ -21,6 +21,15 @@ type KubeCtlPlugin struct {
 	completionUi completion.Completion
 }
 
+var execCommand = func(command string, args ...string) ([]byte, error) {
+	cmd := exec.Command(command, args...)
+	if cmd.Err != nil {
+		return nil, cmd.Err
+	}
+
+	return cmd.CombinedOutput()
+}
+
 func NewKubeCtlPlugin(completionUi completion.Completion) plugin.Plugin {
 	return &KubeCtlPlugin{
 		completionUi: completionUi,
@@ -99,6 +108,7 @@ func (k *KubeCtlPlugin) Suggest(arg plugin.SuggestArg) ([]string, error) {
 	if len(args) < 2 {
 		return arg.Suggest(k.completionUi)
 	}
+
 	var namespace string
 	var resultOptions map[string]string
 	args, resultOptions = filterOptions(args, kubectloptions.KubeCtlGlobalOptions)
@@ -152,15 +162,16 @@ func (k *KubeCtlPlugin) Suggest(arg plugin.SuggestArg) ([]string, error) {
 		resource,
 	}
 	if namespace != "" {
-		suggestOptions = append(suggestOptions, "-n", namespace)
+		suggestOptions = append(suggestOptions, "--namespace", namespace)
 	}
-	kubeCtlGetResult, err := exec.Command(Cli, suggestOptions...).CombinedOutput()
+	kubeCtlGetResult, err := execCommand(Cli, suggestOptions...)
 	if err != nil {
 		fmt.Println(string(kubeCtlGetResult))
-		return []string{}, err
+		return nil, err
 	}
 
-	return k.searchByCompletion(kubeCtlGetResult, namespace, resource, isMultipleResources)
+	completeOptions := arg.GetDefaultCompletionOption()
+	return k.searchByCompletion(kubeCtlGetResult, completeOptions, namespace, resource, isMultipleResources)
 }
 
 func (k KubeCtlPlugin) searchByFzf(kubeCtlGetResult []byte,
@@ -205,56 +216,52 @@ func (k KubeCtlPlugin) searchByFzf(kubeCtlGetResult []byte,
 }
 
 func (k KubeCtlPlugin) searchByCompletion(kubeCtlGetResult []byte,
+	completeOptions completion.CompleteOptions,
 	namespace string,
 	resource string,
 	isMultipleResources bool) ([]string, error) {
-	var previewCommand string
+
 	var header string
 	kubectlResult := strings.Split(strings.TrimSpace(string(kubeCtlGetResult)), "\n")
-
 	if !isMultipleResources {
 		header = kubectlResult[0]
 		kubectlResult = kubectlResult[1:]
 	}
-	if namespace != "" {
-		previewCommand = previewCommand + " --namespace " + namespace
+	if len(kubectlResult) == 0 {
+		return nil, nil
 	}
 
-	completeOptions := completion.CompleteOptions{
-		Header: header,
-		PreviewCommand: func(row int) (string, error) {
-			name := strings.Fields(kubectlResult[row])[0]
-			var previewCommandArgs []string
-			if isMultipleResources {
-				previewCommandArgs = []string{
-					"describe",
-					name,
-				}
-			} else {
-				previewCommandArgs = []string{
-					"describe",
-					resource,
-					name,
-				}
-			}
+	completeOptions.Header = header
+	completeOptions.PreviewCommand = func(row int) (string, error) {
+		name := strings.Fields(kubectlResult[row])[0]
+		previewCommandArgs := []string{
+			"describe",
+		}
+		if namespace != "" {
+			previewCommandArgs = append(previewCommandArgs, "--namespace", namespace)
+		}
+		if isMultipleResources {
+			previewCommandArgs = append(previewCommandArgs, name)
+		} else {
+			previewCommandArgs = append(previewCommandArgs, resource, name)
+		}
 
-			output, err := exec.Command(Cli, previewCommandArgs...).Output()
-			if err != nil {
-				return "", err
-			}
-			if len(output) == 0 {
-				return "", err
-			}
-			return string(output), err
-		},
+		output, err := execCommand(Cli, previewCommandArgs...)
+		if err != nil {
+			return "", err
+		}
+		if len(output) == 0 {
+			return "", err
+		}
+		return string(output), err
 	}
 
 	rows, err := k.completionUi.CompleteMulti(kubectlResult, completeOptions)
 	if err != nil {
-		return []string{}, err
+		return nil, err
 	}
 	if len(rows) == 0 {
-		return []string{}, nil
+		return nil, nil
 	}
 
 	names := make([]string, len(rows))

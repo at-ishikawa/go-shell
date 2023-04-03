@@ -46,3 +46,9 @@ func (arg SuggestArg) GetSuggestedValues() ([]string, error) {
 	historyCommandStats := getHistoryCommandStats(arg.History.Get())
 	return historyCommandStats.getSuggestedValues(arg.Args, arg.CurrentArgToken), nil
 }
+
+func (arg SuggestArg) GetDefaultCompletionOption() completion.CompleteOptions {
+	return completion.CompleteOptions{
+		InitialQuery: arg.CurrentArgToken,
+	}
+}
