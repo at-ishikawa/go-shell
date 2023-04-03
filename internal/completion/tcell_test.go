@@ -170,7 +170,7 @@ func TestTcellCompletion_complete(t *testing.T) {
 			keyEvents: func(screen tcell.SimulationScreen) {
 				screen.InjectKey(tcell.KeyTab, emptyRune, tcell.ModNone)
 			},
-			wantErr: errors.New("error"),
+			wantErr: errors.Join(errors.New("error")),
 		},
 		{
 			name: "return nil when no matches",
