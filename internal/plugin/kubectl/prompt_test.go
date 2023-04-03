@@ -17,32 +17,28 @@ func TestGetContext(t *testing.T) {
 	wantErr := errors.New("PermissionDenied")
 	testCases := []struct {
 		name        string
-		execCommand func(name string, args ...string) *exec.Cmd
+		execCommand func(name string, args ...string) ([]byte, error)
 		want        string
 		wantErr     error
 	}{
 		{
 			name: "return a context",
-			execCommand: func(name string, args ...string) *exec.Cmd {
+			execCommand: func(name string, args ...string) ([]byte, error) {
 				cmd := exec.Command("echo", " context ")
-				return cmd
+				return cmd.CombinedOutput()
 			},
 			want: "context",
 		},
 		{
 			name: "if no kubectl command",
-			execCommand: func(name string, args ...string) *exec.Cmd {
-				cmd := exec.Command("false")
-				cmd.Err = exec.ErrNotFound
-				return cmd
+			execCommand: func(name string, args ...string) ([]byte, error) {
+				return nil, exec.ErrNotFound
 			},
 		},
 		{
 			name: "if an unexpected error",
-			execCommand: func(name string, args ...string) *exec.Cmd {
-				cmd := exec.Command("echo", "permission denied")
-				cmd.Err = wantErr
-				return cmd
+			execCommand: func(name string, args ...string) ([]byte, error) {
+				return nil, wantErr
 			},
 			wantErr: wantErr,
 		},
@@ -66,32 +62,27 @@ func TestGetNamespace(t *testing.T) {
 	wantErr := errors.New("PermissionDenied")
 	testCases := []struct {
 		name        string
-		execCommand func(name string, args ...string) *exec.Cmd
+		execCommand func(name string, args ...string) ([]byte, error)
 		want        string
 		wantErr     error
 	}{
 		{
 			name: "return a context",
-			execCommand: func(name string, args ...string) *exec.Cmd {
-				cmd := exec.Command("echo", "-n", "'namespace'")
-				return cmd
+			execCommand: func(name string, args ...string) ([]byte, error) {
+				return exec.Command("echo", "-n", "'namespace'").CombinedOutput()
 			},
 			want: "namespace",
 		},
 		{
 			name: "if no kubectl command",
-			execCommand: func(name string, args ...string) *exec.Cmd {
-				cmd := exec.Command("false")
-				cmd.Err = exec.ErrNotFound
-				return cmd
+			execCommand: func(name string, args ...string) ([]byte, error) {
+				return nil, exec.ErrNotFound
 			},
 		},
 		{
 			name: "if an unexpected error",
-			execCommand: func(name string, args ...string) *exec.Cmd {
-				cmd := exec.Command("echo", "permission denied")
-				cmd.Err = wantErr
-				return cmd
+			execCommand: func(name string, args ...string) ([]byte, error) {
+				return nil, wantErr
 			},
 			wantErr: wantErr,
 		},
